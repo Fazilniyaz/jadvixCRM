@@ -3,11 +3,24 @@ import { MODULES, MANDATORY_MODULES, OPTIONAL_MODULES, isMandatory } from "@/lib
 import { PORTALS } from "@/lib/portals";
 import { readGrants } from "@/lib/access";
 import Dashboard from "@/components/dashboard/Dashboard";
-import { ProjectManagement, TaskManagement, ProposedBugs, Queries, Communication } from "./work";
-import { EmployeeManagement, Performance, LeaveRequests, Clock } from "./people";
+import { Communication } from "./work";
+import { Performance } from "./people";
+import { ProjectManagement } from "./project-management";
+import { TaskManagement } from "./task-management";
+import { EmployeeManagement } from "./employee-management";
+import { Checklist } from "./checklist";
 import { Salary, Payments } from "./finance";
-import { Leads, Clients, Companies, Branches } from "./org";
-import { Calendar, Notifications, Monitor, Settings } from "./system";
+import { Companies } from "./org";
+import { Leads } from "./leads";
+import { Branches } from "./org-live";
+import { Clients } from "./clients";
+import { Settings } from "./system";
+import { Calendar } from "./calendar";
+import { Monitor } from "./monitor";
+import { Clock } from "./clock";
+import { ProposedBugs } from "./proposed-bugs";
+import { Notifications } from "./notifications";
+import { LeaveRequests } from "./leave-requests";
 import ModuleAccess, { type AccessRow, type AccessCol } from "./ModuleAccess";
 
 export type ModuleViewProps = {
@@ -62,10 +75,10 @@ export function renderModule(slug: ModuleSlug, props: ModuleViewProps): React.Re
       return <ProjectManagement />;
     case "task-management":
       return <TaskManagement />;
+    case "checklist":
+      return <Checklist />;
     case "proposed-bugs":
       return <ProposedBugs />;
-    case "queries":
-      return <Queries />;
     case "communication":
       return <Communication />;
     case "employee-management":

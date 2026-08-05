@@ -11,7 +11,6 @@ import {
   CalendarDays,
   Clock,
   ListChecks,
-  HelpCircle,
   Bell,
   Building2,
   GitBranch,
@@ -19,6 +18,7 @@ import {
   Target,
   Handshake,
   Activity,
+  ClipboardCheck,
 } from "lucide-react";
 
 export type ModuleSlug =
@@ -34,14 +34,14 @@ export type ModuleSlug =
   | "calendar"
   | "clock"
   | "task-management"
-  | "queries"
   | "notifications"
   | "companies"
   | "branches"
   | "proposed-bugs"
   | "leads"
   | "clients"
-  | "monitor";
+  | "monitor"
+  | "checklist";
 
 export type ModuleDef = {
   slug: ModuleSlug;
@@ -66,7 +66,7 @@ export const MODULES: readonly ModuleDef[] = [
     label: "Monitor",
     group: "Overview",
     icon: Activity,
-    blurb: "Live service health and activity across the platform.",
+    blurb: "Delivery plan and progress, as the client sees it.",
   },
   {
     slug: "project-management",
@@ -83,18 +83,18 @@ export const MODULES: readonly ModuleDef[] = [
     blurb: "Work in progress across the board.",
   },
   {
+    slug: "checklist",
+    label: "Checklist",
+    group: "Work",
+    icon: ClipboardCheck,
+    blurb: "QC review queue — score finished work and sign it off or send it back.",
+  },
+  {
     slug: "proposed-bugs",
     label: "Proposed Bugs",
     group: "Work",
     icon: Bug,
     blurb: "Defects raised for triage, with severity and owner.",
-  },
-  {
-    slug: "queries",
-    label: "Queries",
-    group: "Work",
-    icon: HelpCircle,
-    blurb: "Inbound questions and support tickets awaiting a reply.",
   },
   {
     slug: "communication",
@@ -211,7 +211,6 @@ export const MANDATORY_MODULES: readonly ModuleSlug[] = [
   "calendar",
   "clock",
   "task-management",
-  "queries",
   "notifications",
 ];
 
@@ -233,6 +232,9 @@ export const OPTIONAL_MODULES: readonly ModuleSlug[] = [
   "companies",
   "branches",
   "proposed-bugs",
+  // Appended, never inserted — see the bitmask warning above. Grantable rather
+  // than mandatory so it can be switched on for the QC portals only.
+  "checklist",
 ];
 
 export function isMandatory(slug: ModuleSlug): boolean {

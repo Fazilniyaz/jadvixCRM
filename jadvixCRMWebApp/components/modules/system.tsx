@@ -1,23 +1,9 @@
 import {
-  Bell,
-  BellRing,
-  ChevronLeft,
-  ChevronRight,
-  Plus,
   Activity,
   Server,
   ShieldCheck,
   Gauge,
   CircleAlert,
-  CheckCircle2,
-  Bug as BugIcon,
-  CalendarOff,
-  CreditCard,
-  ListChecks,
-  MessageSquare,
-  Settings as SettingsIcon,
-  User,
-  Lock,
   Palette,
 } from "lucide-react";
 import {
@@ -32,224 +18,18 @@ import {
   Th,
   Td,
   Tr,
-  Toolbar,
   Button,
-  Chip,
   Grid,
   Progress,
   tone,
 } from "@/components/ui";
 import {
-  calendarEvents,
-  notifications,
   services,
   activityLog,
   resourceUse,
-  type Tone,
+
 } from "@/lib/data/mock";
-
-/* =============================================================== calendar == */
-
-const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-
-export function Calendar() {
-  // August 2026 starts on a Saturday; 31 days.
-  const firstWeekday = 5; // 0 = Mon
-  const daysInMonth = 31;
-  const cells: (number | null)[] = [
-    ...Array.from({ length: firstWeekday }, () => null),
-    ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
-  ];
-  while (cells.length % 7 !== 0) cells.push(null);
-
-  const eventsFor = (day: number) => calendarEvents.filter((e) => e.day === day);
-
-  return (
-    <div className="grid gap-4 xl:grid-cols-12">
-      <div className="xl:col-span-8">
-        <Card className="h-full">
-          <CardHeader
-            title="August 2026"
-            desc="Releases, leave and company events."
-            action={
-              <Toolbar>
-                <button
-                  type="button"
-                  aria-label="Previous month"
-                  className="flex h-8 w-8 items-center justify-center rounded-sm border border-line text-muted transition-colors hover:border-primary hover:text-primary"
-                >
-                  <ChevronLeft size={15} />
-                </button>
-                <button
-                  type="button"
-                  aria-label="Next month"
-                  className="flex h-8 w-8 items-center justify-center rounded-sm border border-line text-muted transition-colors hover:border-primary hover:text-primary"
-                >
-                  <ChevronRight size={15} />
-                </button>
-                <Button icon={Plus}>Event</Button>
-              </Toolbar>
-            }
-          />
-          <CardBody className="overflow-x-auto">
-            <div className="min-w-[560px]">
-              <div className="grid grid-cols-7 gap-1.5">
-                {WEEKDAYS.map((d) => (
-                  <div
-                    key={d}
-                    className="pb-2 text-center text-[0.6875rem] font-semibold uppercase tracking-wide text-muted"
-                  >
-                    {d}
-                  </div>
-                ))}
-                {cells.map((day, i) => {
-                  const evs = day ? eventsFor(day) : [];
-                  const isToday = day === 4;
-                  return (
-                    <div
-                      key={i}
-                      className={`min-h-[84px] rounded-sm border p-1.5 transition-colors ${
-                        day ? "border-line bg-card hover:bg-hover" : "border-transparent"
-                      }`}
-                    >
-                      {day && (
-                        <>
-                          <span
-                            className={`inline-flex h-5 w-5 items-center justify-center rounded-full text-[0.6875rem] font-semibold ${
-                              isToday ? "bg-primary text-white" : "text-muted"
-                            }`}
-                          >
-                            {day}
-                          </span>
-                          <div className="mt-1 space-y-1">
-                            {evs.map((e) => (
-                              <p
-                                key={e.label}
-                                className="truncate rounded-sm px-1.5 py-0.5 text-[0.625rem] font-medium leading-tight"
-                                style={{ background: tone[e.tone].soft, color: tone[e.tone].text }}
-                                title={e.label}
-                              >
-                                {e.label}
-                              </p>
-                            ))}
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </CardBody>
-        </Card>
-      </div>
-
-      <div className="xl:col-span-4">
-        <Card className="h-full">
-          <CardHeader title="Upcoming" desc="Next events on the calendar." />
-          <ul className="divide-y divide-line">
-            {calendarEvents.slice(0, 7).map((e) => (
-              <li key={e.label} className="flex items-center gap-3 px-4 py-3 sm:px-5">
-                <span
-                  className="flex h-10 w-10 shrink-0 flex-col items-center justify-center rounded-sm text-[0.625rem] font-semibold leading-none"
-                  style={{ background: tone[e.tone].soft, color: tone[e.tone].text }}
-                >
-                  <span className="text-[0.875rem]">{e.day}</span>
-                  <span className="mt-0.5 opacity-70">Aug</span>
-                </span>
-                <span className="min-w-0 flex-1 truncate text-[0.8125rem] text-heading">
-                  {e.label}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </Card>
-      </div>
-    </div>
-  );
-}
-
-/* ========================================================== notifications == */
-
-const KIND_ICON = {
-  task: ListChecks,
-  leave: CalendarOff,
-  payment: CreditCard,
-  bug: BugIcon,
-  message: MessageSquare,
-  system: Server,
-} as const;
-
-const KIND_TONE: Record<string, Tone> = {
-  task: "blue",
-  leave: "orange",
-  payment: "sky",
-  bug: "red",
-  message: "blue",
-  system: "slate",
-};
-
-export function Notifications() {
-  const unread = notifications.filter((n) => n.unread).length;
-
-  return (
-    <div className="space-y-4">
-      <Grid cols={4}>
-        <StatTile label="Unread" value={String(unread)} hint="Since yesterday" t="orange" icon={BellRing} />
-        <StatTile label="Today" value="4" hint="3 need an action" t="blue" icon={Bell} />
-        <StatTile label="Mentions" value="2" hint="In Delivery — Northwind" t="sky" icon={MessageSquare} />
-        <StatTile label="Muted Threads" value="1" hint="QA Guild" t="slate" icon={CheckCircle2} />
-      </Grid>
-
-      <Card>
-        <CardHeader
-          title="Notifications"
-          desc="Everything that needed your attention recently."
-          action={
-            <Toolbar>
-              <Chip active>All</Chip>
-              <Chip>Unread</Chip>
-              <Button variant="ghost">Mark all read</Button>
-            </Toolbar>
-          }
-        />
-        <ul className="divide-y divide-line">
-          {notifications.map((n) => {
-            const Icon = KIND_ICON[n.kind];
-            const t = KIND_TONE[n.kind];
-            return (
-              <li
-                key={n.id}
-                className={`flex gap-3 p-4 transition-colors hover:bg-hover sm:px-5 ${
-                  n.unread ? "bg-subtle/50" : ""
-                }`}
-              >
-                <span
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-avatar"
-                  style={{ background: tone[t].soft, color: tone[t].text }}
-                >
-                  <Icon size={17} />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-start justify-between gap-3">
-                    <p className="text-[0.8125rem] font-semibold text-heading">{n.title}</p>
-                    <span className="shrink-0 whitespace-nowrap text-[0.6875rem] text-muted">
-                      {n.time}
-                    </span>
-                  </div>
-                  <p className="mt-0.5 text-[0.75rem] leading-relaxed text-muted">{n.detail}</p>
-                </div>
-                {n.unread && (
-                  <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-primary" aria-label="Unread" />
-                )}
-              </li>
-            );
-          })}
-        </ul>
-      </Card>
-    </div>
-  );
-}
+import WorkspacePrefs from "./WorkspacePrefs";
 
 /* ================================================================ monitor == */
 
@@ -463,8 +243,12 @@ export function Settings({
         </Card>
 
         <Card>
-          <CardHeader title="Workspace" desc="Defaults for this portal." />
+          <CardHeader
+            title="Workspace"
+            desc="Defaults for this portal, and how records are numbered."
+          />
           <CardBody className="space-y-4">
+            <WorkspacePrefs />
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Language" value="English (UK)" />
               <Field label="Time zone" value="GMT+05:30 — Kolkata" />
@@ -485,4 +269,3 @@ export function Settings({
   );
 }
 
-export const _icons = { SettingsIcon, User, Lock };

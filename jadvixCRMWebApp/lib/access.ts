@@ -33,29 +33,49 @@ export function defaultGrants(): Record<PortalSlug, ModuleSlug[]> {
 }
 
 /* ----------------------------------------------------------- encoding ---- */
-/* `slug:mask` pairs joined by `.`, where mask is a base36 bitmask over
-   OPTIONAL_MODULES. Compact enough to stay well inside the 4KB cookie limit. */
+/*
+ * `slug:mask:width` triples joined by `.`, where mask is a base36 bitmask over
+ * OPTIONAL_MODULES. Compact enough to stay well inside the 4KB cookie limit.
+ *
+ * `width` is how many optional modules existed when the cookie was written.
+ * Without it, appending a module to OPTIONAL_MODULES would read as a zero bit
+ * in every stored cookie — the new module would be silently switched off for
+ * everyone who had ever saved a grant, which is the opposite of the default
+ * for a fresh visitor. Anything past the stored width is granted instead, so a
+ * new module arrives switched on and any deliberate choice already made is
+ * preserved.
+ */
+
+/** Optional-module count before `width` was recorded. Do not change. */
+const LEGACY_WIDTH = 10;
 
 function encode(grants: Record<PortalSlug, ModuleSlug[]>): string {
+  const width = OPTIONAL_MODULES.length.toString(36);
   return PORTALS.map((p) => {
     const granted = new Set(grants[p.slug] ?? []);
     let mask = 0;
     OPTIONAL_MODULES.forEach((m, i) => {
       if (granted.has(m)) mask |= 1 << i;
     });
-    return `${p.slug}:${mask.toString(36)}`;
+    return `${p.slug}:${mask.toString(36)}:${width}`;
   }).join(".");
 }
 
 function decode(raw: string): Record<PortalSlug, ModuleSlug[]> {
   const out = defaultGrants();
   for (const part of raw.split(".")) {
-    const [slug, maskRaw] = part.split(":");
+    const [slug, maskRaw, widthRaw] = part.split(":");
     if (!slug || maskRaw === undefined) continue;
     if (!PORTALS.some((p) => p.slug === slug)) continue;
     const mask = parseInt(maskRaw, 36);
     if (Number.isNaN(mask)) continue;
-    out[slug as PortalSlug] = OPTIONAL_MODULES.filter((_, i) => (mask >> i) & 1);
+
+    const parsedWidth = widthRaw === undefined ? LEGACY_WIDTH : parseInt(widthRaw, 36);
+    const width = Number.isNaN(parsedWidth) ? LEGACY_WIDTH : parsedWidth;
+
+    out[slug as PortalSlug] = OPTIONAL_MODULES.filter((_, i) =>
+      i < width ? (mask >> i) & 1 : true,
+    );
   }
   return out;
 }

@@ -8,106 +8,11 @@
 
 export type Tone = "blue" | "sky" | "orange" | "red" | "slate";
 
-/* ---------------------------------------------------------------- people -- */
-
-export type Employee = {
-  id: string;
-  name: string;
-  initials: string;
-  role: string;
-  dept: "Engineering" | "Design" | "Quality" | "Sales" | "Operations";
-  branch: string;
-  email: string;
-  status: "Active" | "On Leave" | "Notice";
-  tone: Tone;
-  joined: string;
-};
-
-export const employees: Employee[] = [
-  { id: "JDX-014", name: "Neha Iyer", initials: "NI", role: "Software Engineer", dept: "Engineering", branch: "Kochi", email: "neha.iyer@jadvix.com", status: "Active", tone: "blue", joined: "12 Mar 2023" },
-  { id: "JDX-021", name: "Karthik Suresh", initials: "KS", role: "Team Leader", dept: "Engineering", branch: "Kochi", email: "karthik.s@jadvix.com", status: "Active", tone: "orange", joined: "04 Jan 2022" },
-  { id: "JDX-033", name: "Rahul Nair", initials: "RN", role: "QA Lead", dept: "Quality", branch: "Bengaluru", email: "rahul.nair@jadvix.com", status: "Active", tone: "sky" , joined: "27 Jun 2022" },
-  { id: "JDX-040", name: "Priya Raghavan", initials: "PR", role: "Delivery Manager", dept: "Operations", branch: "Kochi", email: "priya.r@jadvix.com", status: "Active", tone: "slate", joined: "19 Sep 2021" },
-  { id: "JDX-052", name: "Sneha Pillai", initials: "SP", role: "Sales Executive", dept: "Sales", branch: "Chennai", email: "sneha.p@jadvix.com", status: "Active", tone: "blue", joined: "02 Feb 2024" },
-  { id: "JDX-058", name: "Arun Varghese", initials: "AV", role: "UI Designer", dept: "Design", branch: "Kochi", email: "arun.v@jadvix.com", status: "On Leave", tone: "orange", joined: "15 Nov 2023" },
-  { id: "JDX-061", name: "Meera Krishnan", initials: "MK", role: "Backend Engineer", dept: "Engineering", branch: "Bengaluru", email: "meera.k@jadvix.com", status: "Active", tone: "sky", joined: "08 Aug 2023" },
-  { id: "JDX-067", name: "Vishnu Prasad", initials: "VP", role: "QA Engineer", dept: "Quality", branch: "Chennai", email: "vishnu.p@jadvix.com", status: "Active", tone: "slate", joined: "21 Apr 2024" },
-  { id: "JDX-072", name: "Aarav Menon", initials: "AM", role: "Super Administrator", dept: "Operations", branch: "Kochi", email: "aarav.m@jadvix.com", status: "Active", tone: "blue", joined: "30 May 2020" },
-  { id: "JDX-079", name: "Divya Ramesh", initials: "DR", role: "Frontend Engineer", dept: "Engineering", branch: "Kochi", email: "divya.r@jadvix.com", status: "Notice", tone: "orange", joined: "11 Jul 2022" },
-];
-
-/* -------------------------------------------------------------- projects -- */
-
-export type Project = {
-  id: string;
-  name: string;
-  client: string;
-  status: "On Track" | "At Risk" | "Delayed" | "Delivered";
-  progress: number;
-  budget: string;
-  spent: string;
-  due: string;
-  team: string[];
-  tone: Tone;
-};
-
-export const projects: Project[] = [
-  { id: "PRJ-101", name: "Northwind Commerce Replatform", client: "Northwind Ltd", status: "On Track", progress: 72, budget: "$148,000", spent: "$96,400", due: "18 Sep 2026", team: ["NI", "KS", "AV"], tone: "blue" },
-  { id: "PRJ-104", name: "Harbour Freight Portal", client: "Harbour Logistics", status: "At Risk", progress: 41, budget: "$92,500", spent: "$61,300", due: "02 Aug 2026", team: ["MK", "DR"], tone: "orange" },
-  { id: "PRJ-107", name: "Lumen Health Mobile App", client: "Lumen Health", status: "On Track", progress: 88, budget: "$210,000", spent: "$171,900", due: "29 Aug 2026", team: ["NI", "RN", "VP"], tone: "blue" },
-  { id: "PRJ-112", name: "Orbit Analytics Dashboard", client: "Orbit Systems", status: "Delayed", progress: 27, budget: "$64,000", spent: "$48,700", due: "14 Jul 2026", team: ["DR", "AV"], tone: "red" },
-  { id: "PRJ-118", name: "Kestrel Payments Gateway", client: "Kestrel Bank", status: "On Track", progress: 55, budget: "$305,000", spent: "$142,000", due: "20 Nov 2026", team: ["MK", "KS", "NI"], tone: "sky" },
-  { id: "PRJ-096", name: "Vantage CRM Migration", client: "Vantage Group", status: "Delivered", progress: 100, budget: "$78,000", spent: "$76,150", due: "30 Apr 2026", team: ["PR", "RN"], tone: "slate" },
-];
-
-/* ----------------------------------------------------------------- tasks -- */
-
-export type Task = {
-  id: string;
-  title: string;
-  project: string;
-  assignee: string;
-  priority: "High" | "Medium" | "Low";
-  tag: string;
-};
-
-export const taskBoard: { column: string; tone: Tone; items: Task[] }[] = [
-  {
-    column: "Backlog",
-    tone: "slate",
-    items: [
-      { id: "TSK-412", title: "Split checkout bundle to cut TTI", project: "PRJ-101", assignee: "DR", priority: "Medium", tag: "Performance" },
-      { id: "TSK-418", title: "Draft data-retention policy copy", project: "PRJ-107", assignee: "PR", priority: "Low", tag: "Compliance" },
-      { id: "TSK-421", title: "Audit unused Tailwind tokens", project: "PRJ-104", assignee: "AV", priority: "Low", tag: "Cleanup" },
-    ],
-  },
-  {
-    column: "In Progress",
-    tone: "blue",
-    items: [
-      { id: "TSK-396", title: "Wire refund flow to payments API", project: "PRJ-118", assignee: "MK", priority: "High", tag: "Backend" },
-      { id: "TSK-403", title: "Rebuild consignment tracking table", project: "PRJ-104", assignee: "NI", priority: "High", tag: "Frontend" },
-      { id: "TSK-409", title: "Empty and error states for search", project: "PRJ-101", assignee: "AV", priority: "Medium", tag: "Design" },
-    ],
-  },
-  {
-    column: "In Review",
-    tone: "orange",
-    items: [
-      { id: "TSK-388", title: "Session expiry banner", project: "PRJ-107", assignee: "KS", priority: "Medium", tag: "Frontend" },
-      { id: "TSK-391", title: "Regression pack for appointments", project: "PRJ-107", assignee: "VP", priority: "High", tag: "QA" },
-    ],
-  },
-  {
-    column: "Done",
-    tone: "sky",
-    items: [
-      { id: "TSK-370", title: "Migrate legacy contact records", project: "PRJ-096", assignee: "MK", priority: "High", tag: "Data" },
-      { id: "TSK-377", title: "Two-factor enrolment screen", project: "PRJ-118", assignee: "NI", priority: "Medium", tag: "Security" },
-      { id: "TSK-381", title: "Invoice PDF template", project: "PRJ-096", assignee: "DR", priority: "Low", tag: "Frontend" },
-    ],
-  },
-];
+/*
+ * Employees, projects and tasks used to live here. They are now the editable
+ * half of the product and live in lib/store — see seed.ts for their demo data.
+ * What remains below is still static.
+ */
 
 /* ------------------------------------------------------------------ bugs -- */
 

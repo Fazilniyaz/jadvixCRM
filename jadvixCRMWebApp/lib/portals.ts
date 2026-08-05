@@ -4,12 +4,37 @@ import { ALL_MODULES } from "./modules";
 export type PortalSlug =
   | "master-portal"
   | "super-admin"
-  | "manager"
-  | "team-leader"
-  | "employee"
-  | "quality-check"
-  | "sales"
+  | "manager-1"
+  | "manager-2"
+  | "team-leader-1"
+  | "team-leader-2"
+  | "quality-check-1"
+  | "quality-check-2"
+  | "quality-check-3"
+  | "employee-1"
+  | "employee-2"
+  | "employee-3"
+  | "sales-1"
+  | "sales-2"
   | "client";
+
+/** Groups the switcher and the login credential list, so 15 portals stay readable. */
+export type PortalGroup =
+  | "Administration"
+  | "Management"
+  | "Delivery"
+  | "Quality"
+  | "Sales"
+  | "External";
+
+export const PORTAL_GROUP_ORDER: readonly PortalGroup[] = [
+  "Administration",
+  "Management",
+  "Delivery",
+  "Quality",
+  "Sales",
+  "External",
+];
 
 export type Portal = {
   slug: PortalSlug;
@@ -18,9 +43,17 @@ export type Portal = {
   blurb: string;
   /** Short tag rendered next to the logo. */
   tag: string;
+  group: PortalGroup;
   modules: readonly ModuleSlug[];
   /** May open the Module Access editor and change other portals' grants. */
   canManageAccess?: boolean;
+  /**
+   * For external portals: the client account this login belongs to.
+   *
+   * Matches an id in lib/data/mock.ts `clients`, and is how the Monitor module
+   * works out which projects to show. Staff portals leave it unset.
+   */
+  clientId?: string;
   demo: { email: string; password: string; user: string; role: string };
 };
 
@@ -28,6 +61,10 @@ export type Portal = {
  * `modules` is the ceiling — the most a portal could ever be granted. What a
  * portal actually sees is resolved at request time by lib/access.ts, which
  * layers the super admin's grants on top of the mandatory baseline.
+ *
+ * Roles are numbered rather than singular (manager-1, manager-2, quality-check-1…)
+ * because the org has several people in each seat. Each portal maps to exactly
+ * one seeded employee — see `portal` on lib/store/seed.ts.
  */
 export const PORTALS: readonly Portal[] = [
   {
@@ -35,6 +72,7 @@ export const PORTALS: readonly Portal[] = [
     name: "Master Portal",
     blurb: "Full control across every company and branch",
     tag: "Master",
+    group: "Administration",
     modules: ALL_MODULES,
     canManageAccess: true,
     demo: {
@@ -49,6 +87,7 @@ export const PORTALS: readonly Portal[] = [
     name: "Super Admin",
     blurb: "Organisation-wide administration",
     tag: "Super Admin",
+    group: "Administration",
     modules: ALL_MODULES,
     canManageAccess: true,
     demo: {
@@ -59,68 +98,171 @@ export const PORTALS: readonly Portal[] = [
     },
   },
   {
-    slug: "manager",
-    name: "Manager Portal",
-    blurb: "Department delivery and approvals",
-    tag: "Manager",
+    slug: "manager-1",
+    name: "Manager 1",
+    blurb: "Delivery management — Northwind, Lumen, Kestrel",
+    tag: "Manager 1",
+    group: "Management",
     modules: ALL_MODULES,
     demo: {
-      email: "manager@jadvix.com",
-      password: "manager@123",
+      email: "manager1@jadvix.com",
+      password: "manager1@123",
       user: "Priya Raghavan",
       role: "Delivery Manager",
     },
   },
   {
-    slug: "team-leader",
-    name: "Team Leader",
-    blurb: "Squad planning and daily standups",
-    tag: "Team Lead",
+    slug: "manager-2",
+    name: "Manager 2",
+    blurb: "Engineering management — Harbour, Orbit",
+    tag: "Manager 2",
+    group: "Management",
     modules: ALL_MODULES,
     demo: {
-      email: "teamlead@jadvix.com",
-      password: "teamlead@123",
+      email: "manager2@jadvix.com",
+      password: "manager2@123",
+      user: "Rohan Kurian",
+      role: "Engineering Manager",
+    },
+  },
+  {
+    slug: "team-leader-1",
+    name: "Team Leader 1",
+    blurb: "Platform squad planning and standups",
+    tag: "Team Lead 1",
+    group: "Delivery",
+    modules: ALL_MODULES,
+    demo: {
+      email: "teamlead1@jadvix.com",
+      password: "teamlead1@123",
       user: "Karthik Suresh",
-      role: "Team Leader",
+      role: "Team Leader — Platform",
     },
   },
   {
-    slug: "employee",
-    name: "Employee Portal",
-    blurb: "Your work, hours and requests",
-    tag: "Employee",
+    slug: "team-leader-2",
+    name: "Team Leader 2",
+    blurb: "Web squad planning and standups",
+    tag: "Team Lead 2",
+    group: "Delivery",
     modules: ALL_MODULES,
     demo: {
-      email: "employee@jadvix.com",
-      password: "employee@123",
-      user: "Neha Iyer",
-      role: "Software Engineer",
+      email: "teamlead2@jadvix.com",
+      password: "teamlead2@123",
+      user: "Meera Krishnan",
+      role: "Team Leader — Web",
     },
   },
   {
-    slug: "quality-check",
-    name: "Quality Check",
-    blurb: "Review queues, defects and sign-off",
-    tag: "QC",
+    slug: "quality-check-1",
+    name: "Quality Check 1",
+    blurb: "QA lead — release sign-off",
+    tag: "QC 1",
+    group: "Quality",
     modules: ALL_MODULES,
     demo: {
-      email: "qc@jadvix.com",
-      password: "qc@123",
+      email: "qc1@jadvix.com",
+      password: "qc1@123",
       user: "Rahul Nair",
       role: "QA Lead",
     },
   },
   {
-    slug: "sales",
-    name: "Sales Portal",
-    blurb: "Pipeline, leads and proposals",
-    tag: "Sales",
+    slug: "quality-check-2",
+    name: "Quality Check 2",
+    blurb: "QA engineering — regression and defects",
+    tag: "QC 2",
+    group: "Quality",
     modules: ALL_MODULES,
     demo: {
-      email: "sales@jadvix.com",
-      password: "sales@123",
+      email: "qc2@jadvix.com",
+      password: "qc2@123",
+      user: "Vishnu Prasad",
+      role: "QA Engineer",
+    },
+  },
+  {
+    slug: "quality-check-3",
+    name: "Quality Check 3",
+    blurb: "QA analysis — checklists and scoring",
+    tag: "QC 3",
+    group: "Quality",
+    modules: ALL_MODULES,
+    demo: {
+      email: "qc3@jadvix.com",
+      password: "qc3@123",
+      user: "Anjali Thomas",
+      role: "QA Analyst",
+    },
+  },
+  {
+    slug: "employee-1",
+    name: "Employee 1",
+    blurb: "Your work, hours and requests",
+    tag: "Employee 1",
+    group: "Delivery",
+    modules: ALL_MODULES,
+    demo: {
+      email: "employee1@jadvix.com",
+      password: "employee1@123",
+      user: "Neha Iyer",
+      role: "Software Engineer",
+    },
+  },
+  {
+    slug: "employee-2",
+    name: "Employee 2",
+    blurb: "Your work, hours and requests",
+    tag: "Employee 2",
+    group: "Delivery",
+    modules: ALL_MODULES,
+    demo: {
+      email: "employee2@jadvix.com",
+      password: "employee2@123",
+      user: "Divya Ramesh",
+      role: "Frontend Engineer",
+    },
+  },
+  {
+    slug: "employee-3",
+    name: "Employee 3",
+    blurb: "Your work, hours and requests",
+    tag: "Employee 3",
+    group: "Delivery",
+    modules: ALL_MODULES,
+    demo: {
+      email: "employee3@jadvix.com",
+      password: "employee3@123",
+      user: "Arun Varghese",
+      role: "UI Designer",
+    },
+  },
+  {
+    slug: "sales-1",
+    name: "Sales 1",
+    blurb: "Pipeline, leads and proposals",
+    tag: "Sales 1",
+    group: "Sales",
+    modules: ALL_MODULES,
+    demo: {
+      email: "sales1@jadvix.com",
+      password: "sales1@123",
       user: "Sneha Pillai",
       role: "Sales Executive",
+    },
+  },
+  {
+    slug: "sales-2",
+    name: "Sales 2",
+    blurb: "Regional sales and key accounts",
+    tag: "Sales 2",
+    group: "Sales",
+    modules: ALL_MODULES,
+    demo: {
+      email: "sales2@jadvix.com",
+      password: "sales2@123",
+      user: "Vikram Das",
+      role: "Sales Manager",
     },
   },
   {
@@ -128,7 +270,9 @@ export const PORTALS: readonly Portal[] = [
     name: "Client Portal",
     blurb: "Your projects, invoices and requests",
     tag: "Client",
+    group: "External",
     modules: ALL_MODULES,
+    clientId: "CL-08",
     demo: {
       email: "client@jadvix.com",
       password: "client@123",
@@ -146,6 +290,14 @@ export function getPortal(slug: string): Portal | undefined {
 
 export function isPortalSlug(slug: string): slug is PortalSlug {
   return PORTAL_MAP.has(slug as PortalSlug);
+}
+
+/** Portals bucketed by group, in menu order, skipping empty groups. */
+export function portalsByGroup(): { group: PortalGroup; items: Portal[] }[] {
+  return PORTAL_GROUP_ORDER.map((group) => ({
+    group,
+    items: PORTALS.filter((p) => p.group === group),
+  })).filter((g) => g.items.length > 0);
 }
 
 /** Demo-only credential check. Never ship this shape against real users. */

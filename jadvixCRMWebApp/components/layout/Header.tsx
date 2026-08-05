@@ -15,7 +15,10 @@ import {
   Check,
   Building2,
 } from "lucide-react";
-import { PORTALS } from "@/lib/portals";
+import Link from "next/link";
+import { portalsByGroup } from "@/lib/portals";
+import { useStore } from "@/lib/store/StoreProvider";
+import { StatusControl } from "./StatusControl";
 
 export default function Header({
   onToggle,
@@ -120,39 +123,49 @@ export default function Header({
                 <p className="border-b border-line px-3 py-2 text-[0.6875rem] font-semibold uppercase tracking-wide text-muted">
                   Switch portal
                 </p>
-                <ul className="max-h-80 overflow-y-auto py-1">
-                  {PORTALS.map((p) => (
-                    <li key={p.slug}>
-                      <button
-                        role="menuitem"
-                        onClick={() => {
-                          setMenu(null);
-                          onSwitchPortal(p.slug);
-                        }}
-                        className="flex w-full items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-hover"
-                      >
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate text-[0.8125rem] font-medium text-heading">
-                            {p.name}
-                          </span>
-                          <span className="block truncate text-[0.6875rem] text-muted">
-                            {p.blurb}
-                          </span>
-                        </span>
-                        {p.slug === portal && (
-                          <Check size={15} className="shrink-0 text-primary" />
-                        )}
-                      </button>
-                    </li>
+                {/* Grouped by role family — a flat list of fifteen is hard to
+                    scan for the one you want. */}
+                <div className="max-h-80 overflow-y-auto py-1">
+                  {portalsByGroup().map(({ group, items }) => (
+                    <div key={group}>
+                      <p className="px-3 pb-1 pt-2 text-[0.625rem] font-semibold uppercase tracking-wide text-muted">
+                        {group}
+                      </p>
+                      <ul>
+                        {items.map((p) => (
+                          <li key={p.slug}>
+                            <button
+                              role="menuitem"
+                              onClick={() => {
+                                setMenu(null);
+                                onSwitchPortal(p.slug);
+                              }}
+                              className="flex w-full items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-hover"
+                            >
+                              <span className="min-w-0 flex-1">
+                                <span className="block truncate text-[0.8125rem] font-medium text-heading">
+                                  {p.name}
+                                </span>
+                                <span className="block truncate text-[0.6875rem] text-muted">
+                                  {p.demo.user} · {p.demo.role}
+                                </span>
+                              </span>
+                              {p.slug === portal && (
+                                <Check size={15} className="shrink-0 text-primary" />
+                              )}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
                   ))}
-                </ul>
+                </div>
               </div>
             )}
           </div>
 
-          <IconBtn label="Notifications" dot="danger">
-            <Bell size={18} />
-          </IconBtn>
+          <StatusControl />
+          <NotificationBell portal={portal} />
           <IconBtn label="Messages" dot="success">
             <MessageSquare size={18} />
           </IconBtn>
@@ -211,6 +224,41 @@ export default function Header({
         </div>
       </div>
     </header>
+  );
+}
+
+/**
+ * Bell with the signed-in portal's real unread count.
+ *
+ * Links into the module rather than opening a popover — the inbox is a page,
+ * and a second surface showing the same rows would be one more thing to keep
+ * in step. Renders nothing but a plain bell for portals with no employee
+ * record, since nothing is ever addressed to them.
+ */
+function NotificationBell({ portal }: { portal: string }) {
+  const { hydrated, currentEmployee, state } = useStore();
+  const unread =
+    hydrated && currentEmployee
+      ? state.notifications.filter((n) => n.to === currentEmployee.id && !n.read).length
+      : 0;
+
+  return (
+    <Link
+      href={`/${portal}/notifications`}
+      aria-label={unread > 0 ? `Notifications, ${unread} unread` : "Notifications"}
+      title={unread > 0 ? `${unread} unread` : "Notifications"}
+      className="relative hidden h-9 w-9 items-center justify-center rounded-sm text-(--header-prime-color) transition-colors hover:bg-hover hover:text-primary sm:flex"
+    >
+      <Bell size={18} />
+      {unread > 0 && (
+        <span
+          className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[0.625rem] font-bold text-white"
+          style={{ background: "rgb(var(--danger-rgb))" }}
+        >
+          {unread > 9 ? "9+" : unread}
+        </span>
+      )}
+    </Link>
   );
 }
 

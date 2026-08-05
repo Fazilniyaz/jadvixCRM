@@ -257,17 +257,53 @@ export function Th({
 export function Td({
   children,
   className = "",
+  colSpan,
 }: {
   children: React.ReactNode;
   className?: string;
+  colSpan?: number;
 }) {
-  return <td className={`px-4 py-3 align-middle sm:px-5 ${className}`}>{children}</td>;
+  return (
+    <td colSpan={colSpan} className={`px-4 py-3 align-middle sm:px-5 ${className}`}>
+      {children}
+    </td>
+  );
 }
 
-export function Tr({ children }: { children: React.ReactNode }) {
+export function Tr({
+  children,
+  onClick,
+  expanded,
+  className = "",
+}: {
+  children: React.ReactNode;
+  /** Makes the whole row a disclosure control. */
+  onClick?: () => void;
+  expanded?: boolean;
+  className?: string;
+}) {
   return (
-    <tr className="border-b border-line transition-colors last:border-0 hover:bg-hover">
+    <tr
+      onClick={onClick}
+      // A row can't be a <button>, so carry the semantics on the row itself and
+      // let the caller put a real focusable control in the first cell.
+      aria-expanded={onClick ? Boolean(expanded) : undefined}
+      className={`border-b border-line transition-colors last:border-0 hover:bg-hover ${
+        onClick ? "cursor-pointer" : ""
+      } ${expanded ? "bg-hover" : ""} ${className}`}
+    >
       {children}
+    </tr>
+  );
+}
+
+/** The panel a disclosure row opens into. Spans the full table width. */
+export function ExpandRow({ colSpan, children }: { colSpan: number; children: React.ReactNode }) {
+  return (
+    <tr className="border-b border-line last:border-0">
+      <td colSpan={colSpan} className="bg-subtle/60 px-4 py-4 sm:px-5">
+        {children}
+      </td>
     </tr>
   );
 }
@@ -282,44 +318,136 @@ export function Button({
   children,
   variant = "primary",
   icon: Icon,
+  onClick,
+  type = "button",
+  disabled = false,
+  className = "",
+  title,
 }: {
   children: React.ReactNode;
-  variant?: "primary" | "ghost";
+  variant?: "primary" | "ghost" | "danger";
   icon?: React.ElementType;
+  onClick?: () => void;
+  type?: "button" | "submit";
+  disabled?: boolean;
+  className?: string;
+  title?: string;
 }) {
   const base =
-    "inline-flex items-center gap-1.5 rounded-sm px-3 py-2 text-[0.8125rem] font-medium transition-colors";
-  const styles =
-    variant === "primary"
-      ? "bg-primary text-white hover:brightness-110"
-      : "border border-line bg-card text-text hover:border-primary hover:text-primary";
+    "inline-flex items-center justify-center gap-1.5 rounded-sm px-3 py-2 text-[0.8125rem] font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-50";
+  const styles = {
+    primary: "bg-primary text-white transition-[filter] hover:brightness-110",
+    ghost: "border border-line bg-card text-text hover:border-primary hover:text-primary",
+    danger: "border border-line bg-card hover:border-danger",
+  }[variant];
   return (
-    <button type="button" className={`${base} ${styles}`}>
-      {Icon && <Icon size={15} />}
+    <button
+      type={type}
+      onClick={onClick}
+      disabled={disabled}
+      title={title}
+      className={`${base} ${styles} ${className}`}
+      style={variant === "danger" ? { color: "rgb(var(--danger-rgb))" } : undefined}
+    >
+      {Icon && <Icon size={15} className="shrink-0" />}
       {children}
     </button>
   );
 }
 
-export function SearchBox({ placeholder = "Search…" }: { placeholder?: string }) {
+/** Square icon-only control — row actions, close buttons, steppers. */
+export function IconButton({
+  icon: Icon,
+  label,
+  onClick,
+  tone: t,
+  size = 32,
+  type = "button",
+}: {
+  icon: React.ElementType;
+  label: string;
+  onClick?: () => void;
+  tone?: Tone;
+  size?: number;
+  type?: "button" | "submit";
+}) {
+  return (
+    <button
+      type={type}
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+      className="inline-flex shrink-0 items-center justify-center rounded-sm border border-line text-muted transition-colors hover:border-primary hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+      style={{
+        width: size,
+        height: size,
+        ...(t ? { background: tone[t].soft, color: tone[t].text, borderColor: "transparent" } : {}),
+      }}
+    >
+      <Icon size={Math.round(size * 0.47)} />
+    </button>
+  );
+}
+
+/** Uncontrolled unless `onChange` is passed, so the decorative uses still work. */
+export function SearchBox({
+  placeholder = "Search…",
+  value,
+  onChange,
+  className = "sm:w-56",
+}: {
+  placeholder?: string;
+  value?: string;
+  onChange?: (v: string) => void;
+  className?: string;
+}) {
   return (
     <input
       type="search"
       placeholder={placeholder}
-      className="h-9 w-full rounded-sm border border-input-border bg-form-bg px-3 text-[0.8125rem] text-text outline-none transition-colors placeholder:text-muted focus:border-primary sm:w-56"
+      value={value}
+      onChange={onChange ? (e) => onChange(e.target.value) : undefined}
+      aria-label={placeholder}
+      className={`h-9 w-full rounded-sm border border-input-border bg-form-bg px-3 text-[0.8125rem] text-text outline-none transition-colors placeholder:text-muted focus:border-primary ${className}`}
     />
   );
 }
 
-export function Chip({ children, active = false }: { children: React.ReactNode; active?: boolean }) {
+/** Becomes a real filter control when `onClick` is given; otherwise a label. */
+export function Chip({
+  children,
+  active = false,
+  onClick,
+  count,
+}: {
+  children: React.ReactNode;
+  active?: boolean;
+  onClick?: () => void;
+  count?: number;
+}) {
+  const cls = `rounded-sm px-2.5 py-1.5 text-[0.75rem] font-medium transition-colors ${
+    active ? "bg-primary text-white" : "border border-line bg-card text-muted"
+  }`;
+  const body = (
+    <>
+      {children}
+      {count !== undefined && (
+        <span className={`ms-1.5 ${active ? "text-white/75" : "text-muted"}`}>{count}</span>
+      )}
+    </>
+  );
+  if (!onClick) return <span className={`cursor-default ${cls}`}>{body}</span>;
   return (
-    <span
-      className={`cursor-default rounded-sm px-2.5 py-1.5 text-[0.75rem] font-medium transition-colors ${
-        active ? "bg-primary text-white" : "border border-line bg-card text-muted"
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`${cls} cursor-pointer hover:border-primary hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
+        active ? "hover:text-white" : ""
       }`}
     >
-      {children}
-    </span>
+      {body}
+    </button>
   );
 }
 
@@ -346,4 +474,137 @@ export function Grid({
     4: "grid-cols-1 sm:grid-cols-2 xl:grid-cols-4",
   } as const;
   return <div className={`grid gap-4 ${map[cols]}`}>{children}</div>;
+}
+
+/* ------------------------------------------------------------ detail bits -- */
+
+/** Small uppercase heading inside an expanded row or a detail panel. */
+export function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="mb-2 text-[0.6875rem] font-semibold uppercase tracking-wide text-muted">
+      {children}
+    </p>
+  );
+}
+
+/** A labelled fact. `block` stacks it; otherwise label and value sit inline. */
+export function Fact({
+  label,
+  children,
+  block = false,
+}: {
+  label: string;
+  children: React.ReactNode;
+  block?: boolean;
+}) {
+  if (block) {
+    return (
+      <div>
+        <SectionLabel>{label}</SectionLabel>
+        <div className="text-[0.8125rem] leading-relaxed text-text">{children}</div>
+      </div>
+    );
+  }
+  return (
+    <div className="flex items-baseline justify-between gap-3 py-1.5">
+      <dt className="shrink-0 text-[0.75rem] text-muted">{label}</dt>
+      <dd className="min-w-0 truncate text-right text-[0.8125rem] font-medium text-heading">
+        {children}
+      </dd>
+    </div>
+  );
+}
+
+/** Rounded pill naming a person, used wherever a list of people is rendered. */
+export function PersonChip({
+  initials,
+  name,
+  hint,
+  t = "blue",
+}: {
+  initials: string;
+  name: string;
+  hint?: string;
+  t?: Tone;
+}) {
+  return (
+    <span className="inline-flex max-w-full items-center gap-2 rounded-avatar border border-line bg-card py-1 pe-2.5 ps-1">
+      <Avatar initials={initials} t={t} size={22} />
+      <span className="min-w-0 truncate text-[0.75rem] font-medium text-heading">{name}</span>
+      {hint && <span className="shrink-0 text-[0.6875rem] text-muted">{hint}</span>}
+    </span>
+  );
+}
+
+/* ------------------------------------------------------------ empty/load -- */
+
+export function EmptyState({
+  icon: Icon,
+  title,
+  desc,
+  action,
+}: {
+  icon?: React.ElementType;
+  title: string;
+  desc?: string;
+  action?: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col items-center justify-center px-6 py-14 text-center">
+      {Icon && (
+        <span
+          className="mb-3 flex h-12 w-12 items-center justify-center rounded-avatar"
+          style={{ background: tone.slate.soft, color: tone.slate.text }}
+        >
+          <Icon size={22} />
+        </span>
+      )}
+      <p className="text-[0.9375rem] font-semibold text-heading">{title}</p>
+      {desc && <p className="mt-1 max-w-sm text-[0.8125rem] leading-relaxed text-muted">{desc}</p>}
+      {action && <div className="mt-4">{action}</div>}
+    </div>
+  );
+}
+
+export function Skeleton({ className = "" }: { className?: string }) {
+  return <span className={`block animate-pulse rounded-sm bg-light ${className}`} />;
+}
+
+/**
+ * Placeholder shown while the store reads localStorage. Mirrors the real
+ * layout — stat row, toolbar, table — so nothing shifts when the data lands.
+ */
+export function ModuleSkeleton({ rows = 6, stats = true }: { rows?: number; stats?: boolean }) {
+  return (
+    <div className="space-y-4" aria-busy="true" aria-live="polite">
+      <span className="sr-only">Loading</span>
+      {stats && (
+        <Grid cols={4}>
+          {Array.from({ length: 4 }, (_, i) => (
+            <Card key={i} className="p-4">
+              <Skeleton className="h-2.5 w-20" />
+              <Skeleton className="mt-3 h-5 w-16" />
+              <Skeleton className="mt-3 h-2.5 w-24" />
+            </Card>
+          ))}
+        </Grid>
+      )}
+      <Card>
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line p-4 sm:p-5">
+          <Skeleton className="h-4 w-40" />
+          <Skeleton className="h-9 w-32" />
+        </div>
+        <div className="divide-y divide-line">
+          {Array.from({ length: rows }, (_, i) => (
+            <div key={i} className="flex items-center gap-3 px-4 py-3.5 sm:px-5">
+              <Skeleton className="h-9 w-9 rounded-avatar" />
+              <Skeleton className="h-3 w-1/3" />
+              <Skeleton className="ms-auto hidden h-3 w-24 sm:block" />
+              <Skeleton className="h-5 w-16" />
+            </div>
+          ))}
+        </div>
+      </Card>
+    </div>
+  );
 }

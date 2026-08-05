@@ -1,6 +1,6 @@
 import Image from "next/image";
 import { ShieldCheck } from "lucide-react";
-import { PORTALS } from "@/lib/portals";
+import { PORTALS, portalsByGroup } from "@/lib/portals";
 import LoginForm from "./LoginForm";
 import DemoCredentials from "./DemoCredentials";
 
@@ -33,14 +33,23 @@ export default function LoginPage() {
             Projects, people, payroll and pipeline — each portal shows the same
             system through the lens of the role signing in.
           </p>
+          {/* Grouped rather than one line per portal — fifteen bullets would
+              crowd the panel and say less than the six groups do. */}
           <ul className="mt-6 space-y-2.5">
-            {PORTALS.map((p) => (
-              <li key={p.slug} className="flex items-center gap-2.5 text-[0.8125rem] text-white/85">
-                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-white/70" />
-                {p.name}
+            {portalsByGroup().map(({ group, items }) => (
+              <li key={group} className="flex items-baseline gap-2.5 text-[0.8125rem] text-white/85">
+                <span className="h-1.5 w-1.5 shrink-0 translate-y-[-0.15rem] rounded-full bg-white/70" />
+                <span>
+                  {group}
+                  <span className="text-white/55"> — {items.length} portals</span>
+                </span>
               </li>
             ))}
           </ul>
+
+          <p className="mt-5 text-[0.8125rem] text-white/70">
+            {PORTALS.length} sign-ins in total, one per seat.
+          </p>
         </div>
 
         <p className="relative text-[0.75rem] text-white/60">

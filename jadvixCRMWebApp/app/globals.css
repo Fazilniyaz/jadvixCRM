@@ -72,6 +72,7 @@
   --form-control-bg: #ffffff;
   --card-title-color: #242f48;
   --card-box-shadow: -8px 12px 18px 0 #dadee8;
+  --pop-box-shadow: 0 8px 24px 0 rgba(4, 7, 7, 0.12);
 
   --gray-1: #ecf0fa;
   --gray-2: #dde2ef;
@@ -122,6 +123,7 @@
   --form-control-bg: #141a26;
   --card-title-color: #ffffff;
   --card-box-shadow: -8px 12px 18px 0 rgba(0, 0, 0, 0.1);
+  --pop-box-shadow: 0 8px 24px 0 rgba(0, 0, 0, 0.45);
 
   --gray-1: rgba(255, 255, 255, 0.1);
   --gray-2: rgba(255, 255, 255, 0.2);
@@ -175,6 +177,9 @@
   --radius-avatar: 0.3rem;
 
   --shadow-card: var(--card-box-shadow);
+  /* Dropdowns and popovers sit above the page rather than in it, so they get a
+     tighter, more vertical shadow than the cards do. */
+  --shadow-pop: var(--pop-box-shadow);
 
   --font-sans: var(--font-roboto), "Roboto", sans-serif;
 

@@ -6,6 +6,8 @@ import Header from "./Header";
 import type { ModuleSlug } from "@/lib/modules";
 import { logout, switchPortal } from "@/lib/actions";
 import { RAIL_COOKIE } from "@/lib/ui-prefs";
+import { StoreProvider } from "@/lib/store/StoreProvider";
+import { BranchBanner } from "./StatusControl";
 
 const DESKTOP = "(min-width: 1024px)";
 
@@ -78,44 +80,52 @@ export default function DashboardShell({
   const visible = isDesktop || mobileOpen;
 
   return (
-    <div className="min-h-screen">
-      <Sidebar
-        open={visible}
-        onClose={() => setMobileOpen(false)}
-        portal={portal}
-        portalName={portalName}
-        tag={tag}
-        modules={modules}
-        collapsed={collapsed}
-      />
-
-      <div
-        className={`transition-[padding] duration-300 ease-out ${
-          collapsed ? "lg:pl-rail" : "lg:pl-sidebar"
-        }`}
-      >
-        <Header
-          onToggle={toggleRail}
-          collapsed={collapsed}
-          dark={dark}
-          onThemeToggle={() => setDark((v) => !v)}
+    // Projects, Tasks and Employees read and write through this provider. It
+    // sits inside the shell so `user` is available for createdBy / updatedBy,
+    // and so the store is shared across every module in the portal.
+    <StoreProvider currentUser={user} currentPortal={portal}>
+      <div className="min-h-screen">
+        <Sidebar
+          open={visible}
+          onClose={() => setMobileOpen(false)}
           portal={portal}
           portalName={portalName}
-          user={user}
-          role={role}
-          onSwitchPortal={(slug) =>
-            startTransition(() => {
-              const fd = new FormData();
-              fd.set("portal", slug);
-              void switchPortal(fd);
-            })
-          }
-          onLogout={() => startTransition(() => void logout())}
+          tag={tag}
+          modules={modules}
+          collapsed={collapsed}
         />
-        <main className="px-2">
-          <div className="px-2 py-4">{children}</div>
-        </main>
+
+        <div
+          className={`transition-[padding] duration-300 ease-out ${
+            collapsed ? "lg:pl-rail" : "lg:pl-sidebar"
+          }`}
+        >
+          <Header
+            onToggle={toggleRail}
+            collapsed={collapsed}
+            dark={dark}
+            onThemeToggle={() => setDark((v) => !v)}
+            portal={portal}
+            portalName={portalName}
+            user={user}
+            role={role}
+            onSwitchPortal={(slug) =>
+              startTransition(() => {
+                const fd = new FormData();
+                fd.set("portal", slug);
+                void switchPortal(fd);
+              })
+            }
+            onLogout={() => startTransition(() => void logout())}
+          />
+          <main className="px-2">
+            <div className="px-2 py-4">
+              <BranchBanner />
+              {children}
+            </div>
+          </main>
+        </div>
       </div>
-    </div>
+    </StoreProvider>
   );
 }
