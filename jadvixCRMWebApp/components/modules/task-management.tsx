@@ -67,6 +67,33 @@ import {
 } from "@/lib/store/types";
 import TaskForm from "./TaskForm";
 import { QcHistory } from "./checklist";
+import SubtaskList from "./SubtaskList";
+
+/**
+ * May the signed-in person change what a task IS — retitle, re-scope, delete?
+ *
+ * Mirrors the API's `full` level exactly, so a button is never offered that can
+ * only produce a 403: a super admin, or an accepted MANAGER on one of the
+ * task's projects. `project.reportTo` is precisely that list, which is why it
+ * is the thing consulted rather than membership generally.
+ *
+ * Moving a task's status and scoring its subtasks is a different, wider right
+ * — the API's `work` level, open to anyone on the project team — and is
+ * deliberately NOT gated here.
+ */
+function useCanManageTasks() {
+  const { state, currentEmployee } = useStore();
+  const isAdmin = Boolean(currentEmployee?.isOwner) || currentEmployee?.role === "Super Admin";
+  const me = currentEmployee?.id;
+
+  return (task: Task) => {
+    if (isAdmin) return true;
+    if (!me) return false;
+    return state.projects.some(
+      (p) => task.projectIds.includes(p.id) && p.reportTo.includes(me),
+    );
+  };
+}
 
 type SortKey = "priority" | "score" | "due" | "title" | "status";
 
@@ -86,11 +113,18 @@ export function TaskManagement() {
   const [status, setStatus] = useState<TaskStatus | "All">("All");
   const [sort, setSort] = useState<SortKey>("priority");
   const [view, setView] = useState<"board" | "list">("board");
+  /** Which of the two readings is on screen — see the switch below. */
+  const [scope, setScope] = useState<"tasks" | "subtasks">("tasks");
   const [openId, setOpenId] = useState<string | null>(null);
   const [detail, setDetail] = useState<Task | null>(null);
   const [editing, setEditing] = useState<Task | undefined>();
   const [formOpen, setFormOpen] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<Task | null>(null);
+
+  const subtaskCount = useMemo(
+    () => tasks.reduce((n, t) => n + t.checklist.length, 0),
+    [tasks],
+  );
 
   const counts = useMemo(() => {
     const by = (s: TaskStatus) => tasks.filter((t) => t.status === s).length;
@@ -184,6 +218,43 @@ export function TaskManagement() {
         />
       </Grid>
 
+      {/*
+       * Tasks or subtasks.
+       *
+       * Two readings of the same data, not two datasets: Tasks answers "what
+       * work is open", Subtasks answers "what acceptance is outstanding". The
+       * switch sits above the toolbar because it changes what the filters below
+       * it apply to.
+       */}
+      <div className="flex overflow-hidden rounded-sm border border-line" role="tablist">
+        {(
+          [
+            { key: "tasks", label: "Tasks", count: counts.total },
+            { key: "subtasks", label: "Subtasks", count: subtaskCount },
+          ] as const
+        ).map((t) => (
+          <button
+            key={t.key}
+            type="button"
+            role="tab"
+            aria-selected={scope === t.key}
+            onClick={() => setScope(t.key)}
+            className={`flex-1 px-4 py-2 text-[0.8125rem] font-medium transition-colors sm:flex-none ${
+              scope === t.key
+                ? "bg-primary text-white"
+                : "bg-card text-muted hover:text-primary"
+            }`}
+          >
+            {t.label}
+            <span className="ms-1.5 opacity-70">{t.count}</span>
+          </button>
+        ))}
+      </div>
+
+      {scope === "subtasks" ? (
+        <SubtaskList tasks={tasks} />
+      ) : (
+        <>
       {/* toolbar */}
       <div className="flex flex-wrap items-center gap-2">
         <SearchBox
@@ -247,7 +318,7 @@ export function TaskManagement() {
             title={tasks.length === 0 ? "No tasks yet" : "Nothing matches those filters"}
             desc={
               tasks.length === 0
-                ? "Create a task to start tracking work, checklists and scores."
+                ? "Create a task to start tracking work, subtasks and scores."
                 : "Try a different search term, or clear the status filter."
             }
             action={
@@ -279,6 +350,8 @@ export function TaskManagement() {
           onEdit={openEdit}
           onDelete={setPendingDelete}
         />
+      )}
+        </>
       )}
 
       {detail && (
@@ -441,6 +514,7 @@ function ListView({
   onDelete: (t: Task) => void;
 }) {
   const { state } = useStore();
+  const canManage = useCanManageTasks();
 
   return (
     <Card>
@@ -514,17 +588,23 @@ function ListView({
                   <Td className="whitespace-nowrap text-muted">{formatDate(task.endDate)}</Td>
                   <Td>
                     <div className="flex justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
-                      <IconButton
-                        icon={Pencil}
-                        label={`Edit ${task.taskId}`}
-                        onClick={() => onEdit(task)}
-                      />
-                      <IconButton
-                        icon={Trash2}
-                        label={`Delete ${task.taskId}`}
-                        tone="red"
-                        onClick={() => onDelete(task)}
-                      />
+                      {canManage(task) ? (
+                        <>
+                          <IconButton
+                            icon={Pencil}
+                            label={`Edit ${task.taskId}`}
+                            onClick={() => onEdit(task)}
+                          />
+                          <IconButton
+                            icon={Trash2}
+                            label={`Delete ${task.taskId}`}
+                            tone="red"
+                            onClick={() => onDelete(task)}
+                          />
+                        </>
+                      ) : (
+                        <span className="text-[0.6875rem] text-muted">Manager only</span>
+                      )}
                     </div>
                   </Td>
                 </Tr>
@@ -553,6 +633,8 @@ function TaskDetailModal({
   onClose: () => void;
   onEdit: (t: Task) => void;
 }) {
+  const canManage = useCanManageTasks();
+
   return (
     <Modal
       open
@@ -564,9 +646,11 @@ function TaskDetailModal({
           <Button variant="ghost" onClick={onClose}>
             Close
           </Button>
-          <Button icon={Pencil} onClick={() => onEdit(task)}>
-            Edit task
-          </Button>
+          {canManage(task) && (
+            <Button icon={Pencil} onClick={() => onEdit(task)}>
+              Edit task
+            </Button>
+          )}
         </>
       }
     >
@@ -578,7 +662,7 @@ function TaskDetailModal({
 /**
  * Shared by the expanded list row and the detail modal.
  *
- * Read-only apart from the status control. The checklist — its wording, its
+ * Read-only apart from the status control. The subtasks — their wording, their
  * scores and its points — is only editable through the task form, so a number
  * that costs someone KRA can't be moved by brushing a slider while reading.
  */
@@ -598,7 +682,7 @@ function TaskDetail({ task }: { task: Task }) {
 
   return (
     <div className="grid gap-5 xl:grid-cols-12">
-      {/* left: brief + checklist */}
+      {/* left: brief + subtasks */}
       <div className="space-y-4 xl:col-span-7">
         <div>
           <SectionLabel>Description</SectionLabel>
@@ -656,7 +740,7 @@ function TaskDetail({ task }: { task: Task }) {
             </span>
           </div>
           {task.checklist.length === 0 ? (
-            <p className="p-4 text-center text-[0.75rem] text-muted">No checklist on this task.</p>
+            <p className="p-4 text-center text-[0.75rem] text-muted">No subtasks on this task.</p>
           ) : (
             <ul className="divide-y divide-line">
               {task.checklist.map((c) => {
@@ -706,7 +790,7 @@ function TaskDetail({ task }: { task: Task }) {
           )}
 
           <p className="border-t border-line px-3 py-2 text-[0.6875rem] text-muted">
-            Scores and points are edited from the task form. QC scores lines in the Checklist
+            Scores and points are edited from the task form. QC scores subtasks in the QC Review
             module.
           </p>
         </div>

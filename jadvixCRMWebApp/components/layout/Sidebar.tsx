@@ -9,16 +9,21 @@ export default function Sidebar({
   open,
   onClose,
   portal,
-  portalName,
-  tag,
+  workspaceLabel,
+  workspaceName,
+  caption,
   modules,
   collapsed,
 }: {
   open: boolean;
   onClose: () => void;
   portal: string;
-  portalName: string;
-  tag: string;
+  /** "Workspace" for a real account, "Portal" for the demo shells. */
+  workspaceLabel: string;
+  /** The company someone is signed into — or the demo portal's name. */
+  workspaceName: string;
+  /** Their role and employee id, shown in the rail footer. */
+  caption: string;
   modules: readonly ModuleSlug[];
   /** Desktop rail mode. Never applies while the mobile overlay is open. */
   collapsed: boolean;
@@ -83,12 +88,14 @@ export default function Sidebar({
           />
         </Link>
 
-        {/* which portal you're in — otherwise every portal looks identical */}
+        {/* whose workspace this is — the company for a real account */}
         <div className="shrink-0 overflow-hidden border-b border-(--menu-border-color) px-5.5 py-3 lg:group-data-[collapsed=true]/rail:hidden">
           <p className="truncate text-[0.6875rem] font-semibold uppercase tracking-wide text-muted">
-            Portal
+            {workspaceLabel}
           </p>
-          <p className="mt-0.5 truncate text-[0.8125rem] font-semibold text-heading">{portalName}</p>
+          <p className="mt-0.5 truncate text-[0.8125rem] font-semibold text-heading">
+            {workspaceName}
+          </p>
         </div>
 
         <nav className="flex-1 overflow-y-auto overflow-x-hidden pb-8 pt-1">
@@ -134,7 +141,7 @@ export default function Sidebar({
 
         <div className="shrink-0 overflow-hidden border-t border-(--menu-border-color) px-5.5 py-3 lg:group-data-[collapsed=true]/rail:hidden">
           <p className="truncate text-[0.6875rem] text-muted">
-            {tag} · {modules.length} modules
+            {caption} · {modules.length} modules
           </p>
         </div>
       </aside>

@@ -66,18 +66,20 @@ import {
 } from "@/lib/store/types";
 
 /*
- * The QC checklist queue.
+ * The QC review queue — scoring the subtasks on finished work.
  *
- * A task lands here the moment it is marked Done. QC scores each acceptance
+ * A task lands here the moment it is marked Done. QC scores each subtask
  * line pass or fail and returns one of three verdicts:
  *
  *   Approved     — signed off, nothing moves.
- *   Corrections  — back to In Progress, no KRA cost.
- *   Error        — back to In Progress, and the failed lines' points come off
- *                  every assignee's KRA.
+ *   Corrections  — back to In Progress, no KRA cost, whether or not subtasks
+ *                  were flagged. Flagging on this verdict says WHAT to redo.
+ *   Error        — back to In Progress, and the flagged subtasks' points come
+ *                  off every assignee's KRA. The only verdict that charges, and
+ *                  the only one that requires something flagged.
  *
  * The deduction is per person, not shared: two people on a task with four
- * points of failed lines lose four each.
+ * points of rejected subtasks lose four each.
  */
 
 type Tab = "queue" | "rework" | "signed-off" | "all";
@@ -163,8 +165,8 @@ export function Checklist() {
 
       <Card>
         <CardHeader
-          title="QC Checklist"
-          desc="Select a task to score its acceptance lines and record a verdict."
+          title="QC Review Queue"
+          desc="Select a task to score its subtasks and record a verdict."
           action={
             <SearchBox
               placeholder="Search tasks or people…"
@@ -352,14 +354,15 @@ function ReviewPanel({ task, onDone }: { task: Task; onDone: () => void }) {
         <div className="rounded-sm border border-line bg-card">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-3 py-2.5">
             <SectionLabel>
-              Acceptance lines — {checklistPoints(task)} points total
+              {task.checklist.length} subtask{task.checklist.length === 1 ? "" : "s"} —{" "}
+              {checklistPoints(task)} KRA point{checklistPoints(task) === 1 ? "" : "s"} at stake
             </SectionLabel>
             {failed.size > 0 && (
               <span
                 className="rounded-sm px-2 py-0.5 text-[0.75rem] font-bold"
                 style={{ background: tone.red.soft, color: tone.red.text }}
               >
-                {failed.size} flagged · {deduction} points
+                {failed.size} rejected · −{deduction} KRA
               </span>
             )}
           </div>
@@ -376,8 +379,14 @@ function ReviewPanel({ task, onDone }: { task: Task; onDone: () => void }) {
                   <span className="min-w-0 flex-1">
                     <span className="block text-[0.8125rem] text-text">{c.label}</span>
                     <span className="text-[0.6875rem] text-muted">
-                      scored {clampScore(c.score).toFixed(1)} · worth {itemPoints(c)} point
-                      {itemPoints(c) === 1 ? "" : "s"}
+                      {/*
+                       * Two numbers, and they answer different questions:
+                       * acceptance is how far the assignee says this subtask
+                       * got; the points are what rejecting it costs each of
+                       * them off their KRA.
+                       */}
+                      Acceptance {Math.round(clampScore(c.score) * 100)}% · worth{" "}
+                      {itemPoints(c)} KRA point{itemPoints(c) === 1 ? "" : "s"}
                     </span>
                   </span>
 
@@ -427,26 +436,38 @@ function ReviewPanel({ task, onDone }: { task: Task; onDone: () => void }) {
               hint="Optional. Stored against the task's history."
             />
 
-            {/* KRA impact, stated before anything is committed */}
+            {/*
+             * What flagging costs — and, just as importantly, what it does not.
+             *
+             * This panel used to turn red the moment a subtask was flagged and
+             * announce a per-person before/after, whichever verdict you were
+             * heading for. A manager flagging subtasks in order to request
+             * CORRECTIONS read that as "this is about to cost my team KRA",
+             * which is the opposite of what Corrections does. It is neutral
+             * now, and says the rule outright.
+             */}
             <div
               className="rounded-sm p-3"
-              style={{
-                background: deduction > 0 ? tone.red.soft : tone.slate.soft,
-                color: deduction > 0 ? tone.red.text : tone.slate.text,
-              }}
+              style={{ background: tone.slate.soft, color: tone.slate.text }}
             >
               <p className="flex items-center gap-1.5 text-[0.75rem] font-semibold">
                 <Gauge size={13} />
-                KRA impact of an Error verdict
+                KRA impact
               </p>
               <p className="mt-1 text-[0.75rem] leading-relaxed">
+                <strong>Only an Error verdict moves KRA.</strong> Approving or
+                requesting corrections never costs anyone points, however many
+                subtasks are flagged.
+              </p>
+              <p className="mt-1.5 text-[0.75rem] leading-relaxed">
                 {deduction === 0 ? (
-                  <>No lines flagged, so an Error verdict would deduct nothing.</>
+                  <>No subtasks flagged — an Error verdict would deduct nothing.</>
                 ) : (
                   <>
-                    <strong>{deduction}</strong> point{deduction === 1 ? "" : "s"} off{" "}
-                    <strong>each</strong> of {assignees.length} assignee
-                    {assignees.length === 1 ? "" : "s"} — not shared between them.
+                    If you record an <strong>Error</strong>: {deduction} point
+                    {deduction === 1 ? "" : "s"} off <strong>each</strong> of{" "}
+                    {assignees.length} assignee{assignees.length === 1 ? "" : "s"} — not
+                    shared between them.
                   </>
                 )}
               </p>
@@ -456,8 +477,9 @@ function ReviewPanel({ task, onDone }: { task: Task; onDone: () => void }) {
                     <li key={e.id} className="flex items-center gap-2 text-[0.75rem]">
                       <Avatar initials={initialsOf(e.name)} t={e.tone} size={22} />
                       <span className="min-w-0 flex-1 truncate">{e.name}</span>
+                      {/* Prefixed, so this can't be read as a change already made. */}
                       <span className="font-mono font-semibold">
-                        {e.kraScore} → {Math.max(0, e.kraScore - deduction)}
+                        on Error: {e.kraScore} → {Math.max(0, e.kraScore - deduction)}
                       </span>
                     </li>
                   ))}
@@ -477,7 +499,7 @@ function ReviewPanel({ task, onDone }: { task: Task; onDone: () => void }) {
                 icon={XCircle}
                 disabled={failed.size === 0}
                 title={
-                  failed.size === 0 ? "Flag at least one line to record an error" : undefined
+                  failed.size === 0 ? "Flag at least one subtask to record an error" : undefined
                 }
                 onClick={() => setConfirm("Error")}
               >

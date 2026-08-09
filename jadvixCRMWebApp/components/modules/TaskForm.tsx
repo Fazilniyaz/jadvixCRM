@@ -20,7 +20,7 @@ import {
   PRIORITIES,
   ROLE_TONE,
   TASK_STATUSES,
-  type ChecklistItem,
+  type Subtask,
   type Task,
   type TaskStatus,
 } from "@/lib/store/types";
@@ -44,11 +44,12 @@ type Draft = {
   startDate: string;
   endDate: string;
   prUrl: string;
-  checklist: ChecklistItem[];
+  /** Named `checklist` because that is still the field on the wire. */
+  checklist: Subtask[];
 };
 
 let rowSeq = 0;
-const newRow = (): ChecklistItem => ({
+const newRow = (): Subtask => ({
   id: `cl-${Date.now()}-${rowSeq++}`,
   label: "",
   score: 0,
@@ -87,7 +88,7 @@ function describeChanges(before: Task, after: Draft, projectNames: (ids: string[
 
   const beforeScores = before.checklist.map((c) => `${c.label}:${c.score}`).join("|");
   const afterScores = after.checklist.map((c) => `${c.label}:${c.score}`).join("|");
-  if (beforeScores !== afterScores) parts.push("checklist updated");
+  if (beforeScores !== afterScores) parts.push("subtasks updated");
 
   if (parts.length === 0) return "";
   return parts.join(", ").replace(/^./, (c) => c.toUpperCase()) + ".";
@@ -141,9 +142,9 @@ export default function TaskForm({
     [projects],
   );
 
-  /* ------------------------------------------------------------- checklist */
+  /* -------------------------------------------------------------- subtasks */
 
-  const setRow = (id: string, patch: Partial<ChecklistItem>) =>
+  const setRow = (id: string, patch: Partial<Subtask>) =>
     set(
       "checklist",
       draft.checklist.map((c) => (c.id === id ? { ...c, ...patch } : c)),
@@ -217,7 +218,7 @@ export default function TaskForm({
       desc={
         task
           ? "Every change is written to this task's history."
-          : "Checklist lines are scored 0 to 1 and drive the task's completion."
+          : "Subtasks are scored 0 to 1 — that acceptance score drives the task's completion."
       }
       size="lg"
       footer={
@@ -341,10 +342,10 @@ export default function TaskForm({
           error={errors.endDate}
         />
 
-        {/* ------------------------------------------------------ checklist */}
+        {/* ------------------------------------------------------- subtasks */}
         <Span>
           <Field
-            label="Checklist & scores"
+            label="Subtasks & acceptance scores"
             required
             error={errors.checklist}
             hint="Score is 0 to 1 and drives completion. Points are what the line costs each assignee's KRA if QC rejects it."
@@ -371,7 +372,7 @@ export default function TaskForm({
                         value={c.label}
                         onChange={(e) => setRow(c.id, { label: e.target.value })}
                         placeholder={`Acceptance line ${i + 1}`}
-                        aria-label={`Checklist line ${i + 1}`}
+                        aria-label={`Subtask ${i + 1}`}
                         className="h-9 min-w-0 flex-1 rounded-sm border border-input-border bg-form-bg px-2.5 text-[0.8125rem] text-text outline-none transition-colors placeholder:text-muted focus:border-primary"
                       />
                       <IconButton
@@ -422,7 +423,7 @@ export default function TaskForm({
 
               <div className="border-t border-line p-2.5">
                 <Button variant="ghost" icon={Plus} onClick={addRow}>
-                  Add checklist line
+                  Add subtask
                 </Button>
               </div>
             </div>

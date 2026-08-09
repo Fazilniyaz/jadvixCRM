@@ -3,7 +3,7 @@
  * one system — same card chrome, same badge shape, same table rhythm.
  * All colour comes from the Jadvix tokens in globals.css.
  */
-import type { Tone } from "@/lib/data/mock";
+import type { Tone } from "@/lib/ui/tone";
 
 /* Tints resolve through CSS variables so they follow the light/dark theme.
    `solid` and `text` use the contrast-safe shades; `soft` uses the raw logo

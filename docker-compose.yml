@@ -1,0 +1,48 @@
+# Single-host deployment: backend + frontend behind Caddy (auto-HTTPS).
+# Only Caddy is published to the host; the app containers talk over the
+# internal compose network. Fill .env (see .env.deploy.example) first.
+
+services:
+  backend:
+    build: ./jadvix-backend
+    env_file: ./jadvix-backend/.env.production
+    expose:
+      - "4000"
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./jadvixCRMWebApp
+      args:
+        # origin only — the app appends /api/v1 itself
+        NEXT_PUBLIC_API_URL: ${PUBLIC_ORIGIN}
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      HOSTNAME: 0.0.0.0
+    expose:
+      - "3000"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      # e.g. 13.234.56.78.sslip.io  (resolves to your Elastic IP)
+      SITE_ADDRESS: ${SITE_ADDRESS}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - frontend
+      - backend
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
+  caddy_config:

@@ -3,12 +3,15 @@ import { MODULES, MANDATORY_MODULES, OPTIONAL_MODULES, isMandatory } from "@/lib
 import { PORTALS } from "@/lib/portals";
 import { readGrants } from "@/lib/access";
 import Dashboard from "@/components/dashboard/Dashboard";
+import MasterDashboard from "./master-dashboard";
+import MasterCompanies from "./master-companies";
 import { Communication } from "./work";
 import { Performance } from "./people";
 import { ProjectManagement } from "./project-management";
 import { TaskManagement } from "./task-management";
 import { EmployeeManagement } from "./employee-management";
 import { Checklist } from "./checklist";
+import { Requests } from "./requests";
 import { Salary, Payments } from "./finance";
 import { Companies } from "./org";
 import { Leads } from "./leads";
@@ -68,15 +71,22 @@ async function AccessEditor() {
  * lib/modules.ts.
  */
 export function renderModule(slug: ModuleSlug, props: ModuleViewProps): React.ReactNode {
+  // The master portal is a different product from the staff portals: it manages
+  // tenants, not sales. Two modules render a master-specific view; the rest of
+  // the registry is untouched, so every other portal is exactly as it was.
+  const isMaster = props.portal === "master-portal";
+
   switch (slug) {
     case "dashboard":
-      return <Dashboard />;
+      return isMaster ? <MasterDashboard /> : <Dashboard />;
     case "project-management":
       return <ProjectManagement />;
     case "task-management":
       return <TaskManagement />;
     case "checklist":
       return <Checklist />;
+    case "requests":
+      return <Requests />;
     case "proposed-bugs":
       return <ProposedBugs />;
     case "communication":
@@ -98,7 +108,7 @@ export function renderModule(slug: ModuleSlug, props: ModuleViewProps): React.Re
     case "clients":
       return <Clients />;
     case "companies":
-      return <Companies />;
+      return isMaster ? <MasterCompanies /> : <Companies />;
     case "branches":
       return <Branches />;
     case "calendar":

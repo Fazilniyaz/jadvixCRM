@@ -5,6 +5,7 @@ import { getModule } from "@/lib/modules";
 import { getEffectiveModules, canManageAccess } from "@/lib/access";
 import { PageHead } from "@/components/ui";
 import { renderModule } from "@/components/modules/registry";
+import ModuleGuard from "@/components/layout/ModuleGuard";
 
 /** Pre-render every portal/module pair. Access is still checked per request. */
 export function generateStaticParams() {
@@ -28,20 +29,23 @@ export default async function ModulePage({ params }: PageProps<"/[portal]/[modul
   const mod = getModule(mSlug);
   if (!portal || !mod) notFound();
 
-  // This is the real gate. Hiding an item from the sidebar is cosmetic; a
-  // revoked module must 404 even when someone types the URL directly.
+  // The demo gate: a per-browser cookie, keyed by portal. It is the whole story
+  // when nobody is signed into the API, and says nothing at all when someone is
+  // — which is why ModuleGuard re-checks below against the actual session.
   const modules = await getEffectiveModules(portal.slug);
   if (!modules.includes(mod.slug)) notFound();
 
   return (
     <>
       <PageHead title={mod.label} blurb={mod.blurb} />
-      {renderModule(mod.slug, {
-        user: portal.demo.user,
-        role: portal.demo.role,
-        portal: portal.slug,
-        canManageAccess: canManageAccess(portal.slug),
-      })}
+      <ModuleGuard slug={mod.slug}>
+        {renderModule(mod.slug, {
+          user: portal.demo.user,
+          role: portal.demo.role,
+          portal: portal.slug,
+          canManageAccess: canManageAccess(portal.slug),
+        })}
+      </ModuleGuard>
     </>
   );
 }

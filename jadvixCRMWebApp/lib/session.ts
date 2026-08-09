@@ -20,8 +20,9 @@ export async function createSession(portal: PortalSlug) {
     httpOnly: true,
     sameSite: "lax",
     path: "/",
-    // demo build runs over http locally; secure would drop the cookie
-    secure: process.env.NODE_ENV === "production",
+    // demo build runs over http locally; secure would drop the cookie.
+    // COOKIE_SECURE=false forces it off for an http-only (Elastic IP) deploy.
+    secure: process.env.COOKIE_SECURE === "false" ? false : process.env.NODE_ENV === "production",
     maxAge: 60 * 60 * 8,
   });
 }

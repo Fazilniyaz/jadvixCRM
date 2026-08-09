@@ -50,8 +50,9 @@ export type Portal = {
   /**
    * For external portals: the client account this login belongs to.
    *
-   * Matches an id in lib/data/mock.ts `clients`, and is how the Monitor module
-   * works out which projects to show. Staff portals leave it unset.
+   * How the Monitor module works out which projects to show. Staff portals
+   * leave it unset. It used to match an id in the deleted mock client list; for
+   * a real tenant it must match a client record from the API.
    */
   clientId?: string;
   demo: { email: string; password: string; user: string; role: string };
@@ -63,8 +64,9 @@ export type Portal = {
  * layers the super admin's grants on top of the mandatory baseline.
  *
  * Roles are numbered rather than singular (manager-1, manager-2, quality-check-1…)
- * because the org has several people in each seat. Each portal maps to exactly
- * one seeded employee — see `portal` on lib/store/seed.ts.
+ * because the org has several people in each seat. Each used to map to one
+ * seeded employee; the seed is gone, so a portal is now only a shell identity —
+ * who is really signed in comes from /auth/me.
  */
 export const PORTALS: readonly Portal[] = [
   {
@@ -298,6 +300,23 @@ export function portalsByGroup(): { group: PortalGroup; items: Portal[] }[] {
     group,
     items: PORTALS.filter((p) => p.group === group),
   })).filter((g) => g.items.length > 0);
+}
+
+/**
+ * Which portal shell to open for an account signed into jadvix-backend.
+ *
+ * The API's roles are the authority on what someone may do; this only picks the
+ * shell that reads best for them. Ordered most-privileged first, so someone who
+ * is both a team leader and a developer lands in the team leader's portal.
+ */
+export function portalForRoles(roles: readonly string[], isOwner = false): PortalSlug {
+  if (isOwner || roles.includes("superAdmin")) return "super-admin";
+  if (roles.includes("manager")) return "manager-1";
+  if (roles.includes("teamLeader")) return "team-leader-1";
+  if (roles.includes("qualityCheck")) return "quality-check-1";
+  if (roles.includes("sales")) return "sales-1";
+  if (roles.includes("client")) return "client";
+  return "employee-1";
 }
 
 /** Demo-only credential check. Never ship this shape against real users. */

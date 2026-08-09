@@ -13,14 +13,13 @@ import {
 } from "@/components/ui/form";
 import { useStore } from "@/lib/store/StoreProvider";
 import {
-  EMPLOYEE_ROLES,
+  ASSIGNABLE_ROLES,
   EMPLOYEE_STATUSES,
   type Employee,
   type EmployeeRole,
   type EmployeeStatus,
 } from "@/lib/store/types";
-import type { Tone } from "@/lib/data/mock";
-import { branches as knownBranches } from "@/lib/data/mock";
+import type { Tone } from "@/lib/ui/tone";
 
 /*
  * Create / edit an employee.
@@ -84,7 +83,6 @@ export default function EmployeeForm({
   };
 
   const autoId = settings.autoEmployeeId && !employee;
-  const branchSuggestions = useMemo(() => knownBranches.map((b) => b.name), []);
 
   function validate(): boolean {
     const next: Record<string, string> = {};
@@ -100,7 +98,8 @@ export default function EmployeeForm({
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(draft.email.trim()))
       next.email = "That doesn't look like an email address.";
     if (!draft.phone.trim()) next.phone = "Enter a contact number.";
-    if (!draft.branch.trim()) next.branch = "Pick a branch.";
+    // No branch check: the API places a new joiner in the branch the workspace
+    // is currently scoped to, so there is nothing for the form to ask.
     if (!draft.createdAt) next.createdAt = "Pick a joining date.";
     if (!Number.isFinite(draft.kraScore) || draft.kraScore < 0 || draft.kraScore > 100)
       next.kraScore = "The KRA score runs from 0 to 100.";
@@ -202,7 +201,9 @@ export default function EmployeeForm({
           label="Role"
           value={draft.role}
           onChange={(v) => set("role", v)}
-          options={EMPLOYEE_ROLES.map((r) => ({ value: r, label: r }))}
+          // Super Admin is not offered: it belongs to the company owner and the
+          // API refuses to grant it through any endpoint.
+          options={ASSIGNABLE_ROLES.map((r) => ({ value: r, label: r }))}
         />
         <SelectInput<EmployeeStatus>
           label="Status"
@@ -211,15 +212,6 @@ export default function EmployeeForm({
           options={EMPLOYEE_STATUSES.map((s) => ({ value: s, label: s }))}
         />
 
-        <TextInput
-          label="Branch"
-          required
-          value={draft.branch}
-          onChange={(v) => set("branch", v)}
-          suggestions={branchSuggestions}
-          placeholder="Kochi HQ"
-          error={errors.branch}
-        />
         <TextInput
           label="Joined on"
           required

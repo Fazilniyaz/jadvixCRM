@@ -56,6 +56,7 @@ import {
   tasksForEmployee,
 } from "@/lib/store/selectors";
 import {
+  ACCOUNT_STATE_TONE,
   EMPLOYEE_ROLES,
   EMPLOYEE_STATUSES,
   EMPLOYEE_STATUS_TONE,
@@ -68,6 +69,8 @@ import {
   type EmployeeStatus,
 } from "@/lib/store/types";
 import EmployeeForm from "./EmployeeForm";
+import { EmployeeModuleAccess } from "./EmployeeModuleAccess";
+import KraHistory from "./KraHistory";
 
 type SortKey = "name" | "kra" | "joined" | "load";
 
@@ -86,8 +89,37 @@ function kraTone(score: number) {
   return "red" as const;
 }
 
+/**
+ * The account lifecycle badge — Invited until the emailed link is accepted.
+ *
+ * Absent `accountState` means the demo store, where nobody has a login at all;
+ * that reads as Active rather than as a workspace of people who never joined.
+ */
+function AccountBadge({ employee }: { employee: Employee }) {
+  const account = employee.accountState ?? "Active";
+  if (account === "Invited" && employee.inviteExpired) {
+    return <Badge t="red">Invite expired</Badge>;
+  }
+  return <Badge t={ACCOUNT_STATE_TONE[account]}>{account}</Badge>;
+}
+
 export function EmployeeManagement() {
-  const { hydrated, state, deleteEmployee } = useStore();
+  const { hydrated, state, currentEmployee, deleteEmployee } = useStore();
+
+  /*
+   * Who the row buttons are offered to.
+   *
+   * These mirror what the API will actually accept, so a button is never shown
+   * that can only produce a 403. Holding the Employees module is what authorises
+   * writing to OTHER people's records; it buys nothing on your own, where the
+   * server allows a super admin everything and everyone else only the fields
+   * Settings already exposes (name, phone, avatar, availability).
+   */
+  const isAdmin = Boolean(currentEmployee?.isOwner) || currentEmployee?.role === "Super Admin";
+  const isSelf = (e: Employee) => Boolean(currentEmployee) && e.id === currentEmployee?.id;
+  const canEdit = (e: Employee) => !isSelf(e) || isAdmin;
+  // Nobody, admin or not, may remove their own account.
+  const canDelete = (e: Employee) => !isSelf(e);
   // Narrowed by the pinned branch, so every count here describes one office.
   const employees = useMemo(() => scopedEmployees(state), [state]);
 
@@ -107,9 +139,14 @@ export function EmployeeManagement() {
       onLeave: byStatus("Leave"),
       idle: byStatus("Idle"),
       working: byStatus("Work Assigned"),
-      avgKra: employees.length
-        ? Math.round(employees.reduce((n, e) => n + e.kraScore, 0) / employees.length)
-        : 0,
+      // The owner is excluded: they are not scored, so counting their default
+      // 100 would flatter the workspace average by a person who never earns it.
+      avgKra: (() => {
+        const scored = employees.filter((e) => !e.isOwner);
+        return scored.length
+          ? Math.round(scored.reduce((n, e) => n + e.kraScore, 0) / scored.length)
+          : 0;
+      })(),
       byRole: Object.fromEntries(
         EMPLOYEE_ROLES.map((r) => [r, employees.filter((e) => e.role === r).length]),
       ) as Record<EmployeeRole, number>,
@@ -271,6 +308,7 @@ export function EmployeeManagement() {
                 <Th className="w-40">KRA</Th>
                 <Th>Open work</Th>
                 <Th>Status</Th>
+                <Th>Account</Th>
                 <Th className="text-right">Actions</Th>
               </tr>
             </thead>
@@ -315,12 +353,19 @@ export function EmployeeManagement() {
                       </Td>
                       <Td className="whitespace-nowrap text-muted">{e.branch}</Td>
                       <Td>
-                        <div className="flex items-center gap-2">
-                          <Progress value={e.kraScore} t={kraTone(e.kraScore)} />
-                          <span className="w-8 shrink-0 text-right text-[0.75rem] font-semibold text-heading">
-                            {e.kraScore}
-                          </span>
-                        </div>
+                        {e.isOwner ? (
+                          // KRA measures delivery against assigned work. The
+                          // owner is never assigned any, so a score would be a
+                          // number that could not move.
+                          <span className="text-[0.75rem] text-muted">—</span>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <Progress value={e.kraScore} t={kraTone(e.kraScore)} />
+                            <span className="w-8 shrink-0 text-right text-[0.75rem] font-semibold text-heading">
+                              {e.kraScore}
+                            </span>
+                          </div>
+                        )}
                       </Td>
                       <Td className="whitespace-nowrap">
                         <span className="font-semibold text-heading">{open}</span>
@@ -330,20 +375,54 @@ export function EmployeeManagement() {
                         <Badge t={EMPLOYEE_STATUS_TONE[e.status]}>{e.status}</Badge>
                       </Td>
                       <Td>
+                        <AccountBadge employee={e} />
+                      </Td>
+                      <Td>
                         <div className="flex justify-end gap-1.5" onClick={(ev) => ev.stopPropagation()}>
-                          <IconButton icon={Pencil} label={`Edit ${e.name}`} onClick={() => openEdit(e)} />
-                          <IconButton
-                            icon={Trash2}
-                            label={`Remove ${e.name}`}
-                            tone="red"
-                            onClick={() => setPendingDelete(e)}
-                          />
+                          {e.isOwner ? (
+                            // The company owner's row is read-only. They cannot
+                            // be demoted, disabled or removed — the API refuses
+                            // all three — so offering the buttons would only
+                            // produce a 400.
+                            <span className="text-[0.6875rem] text-muted">Account owner</span>
+                          ) : (
+                            <>
+                              {canEdit(e) && (
+                                <IconButton
+                                  icon={Pencil}
+                                  label={`Edit ${e.name}`}
+                                  onClick={() => openEdit(e)}
+                                />
+                              )}
+                              {canDelete(e) && (
+                                <IconButton
+                                  icon={Trash2}
+                                  label={`Remove ${e.name}`}
+                                  tone="red"
+                                  onClick={() => setPendingDelete(e)}
+                                />
+                              )}
+                              {/*
+                               * Your own row. Nobody may delete themselves —
+                               * the API returns "You can't remove your own
+                               * account", and an admin who could would lock the
+                               * tenant out. Editing your own name, phone and
+                               * avatar lives in Settings, which is the only
+                               * place a non-admin is allowed to change them.
+                               */}
+                              {isSelf(e) && (
+                                <span className="text-[0.6875rem] text-muted">
+                                  {canEdit(e) ? "You" : "You — edit in Settings"}
+                                </span>
+                              )}
+                            </>
+                          )}
                         </div>
                       </Td>
                     </Tr>
 
                     {expanded && (
-                      <ExpandRow colSpan={8}>
+                      <ExpandRow colSpan={9}>
                         <EmployeeDetail employee={e} />
                       </ExpandRow>
                     )}
@@ -397,36 +476,71 @@ function EmployeeDetail({ employee }: { employee: Employee }) {
           <ContactRow icon={MapPin} label="Branch" value={employee.branch} />
           <ContactRow icon={ShieldCheck} label="Joined" value={formatDate(employee.createdAt)} />
         </dl>
+
+        {/* Renders only for a super admin — the endpoint behind it 403s for
+            everyone else, which is what decides whether it appears. */}
+        <EmployeeModuleAccess employeeId={employee.id} />
+
+        {/* Why the KRA number on their row is what it is. */}
+        {!employee.isOwner && <KraHistory employeeId={employee.id} />}
+
+        {/* Says why someone who was added is not signing in yet. */}
+        {employee.accountState === "Invited" && (
+          <div className="rounded-sm border border-line bg-card p-4">
+            <SectionLabel>Account</SectionLabel>
+            <p className="mt-2 flex items-center gap-2">
+              <AccountBadge employee={employee} />
+            </p>
+            <p className="mt-2 text-[0.6875rem] leading-relaxed text-muted">
+              {employee.inviteExpired
+                ? "Their invitation expired before it was used. Re-send it to give them a fresh link."
+                : "They have been emailed a link and have not set a password yet. They become Active the moment they do."}
+            </p>
+          </div>
+        )}
       </div>
 
       {/* KRA + workload */}
       <div className="space-y-4 xl:col-span-4">
-        <div className="rounded-sm border border-line bg-card p-4">
-          <div className="flex items-center justify-between gap-3">
+        {/* The owner is never assigned work, so there is nothing for a KRA
+            score to measure — showing a static 100 would imply otherwise. */}
+        {employee.isOwner ? (
+          <div className="rounded-sm border border-line bg-card p-4">
             <SectionLabel>KRA score</SectionLabel>
-            <span
-              className="rounded-sm px-2 py-0.5 text-[0.8125rem] font-bold"
-              style={{
-                background: tone[kraTone(employee.kraScore)].soft,
-                color: tone[kraTone(employee.kraScore)].text,
-              }}
-            >
-              {employee.kraScore} / 100
-            </span>
+            <p className="mt-2 text-[0.8125rem] font-semibold text-heading">Not scored</p>
+            <p className="mt-1 text-[0.6875rem] leading-relaxed text-muted">
+              KRA measures delivery against assigned work. The account owner
+              isn&rsquo;t assigned any, so there is nothing to score.
+            </p>
           </div>
-          <div className="mt-3">
-            <Progress value={employee.kraScore} t={kraTone(employee.kraScore)} />
+        ) : (
+          <div className="rounded-sm border border-line bg-card p-4">
+            <div className="flex items-center justify-between gap-3">
+              <SectionLabel>KRA score</SectionLabel>
+              <span
+                className="rounded-sm px-2 py-0.5 text-[0.8125rem] font-bold"
+                style={{
+                  background: tone[kraTone(employee.kraScore)].soft,
+                  color: tone[kraTone(employee.kraScore)].text,
+                }}
+              >
+                {employee.kraScore} / 100
+              </span>
+            </div>
+            <div className="mt-3">
+              <Progress value={employee.kraScore} t={kraTone(employee.kraScore)} />
+            </div>
+            <p className="mt-2 text-[0.6875rem] text-muted">
+              {employee.kraScore >= 95
+                ? "Exceeding expectations."
+                : employee.kraScore >= 85
+                  ? "Meeting expectations."
+                  : employee.kraScore >= 70
+                    ? "Needs support this quarter."
+                    : "On a performance plan."}
+            </p>
           </div>
-          <p className="mt-2 text-[0.6875rem] text-muted">
-            {employee.kraScore >= 95
-              ? "Exceeding expectations."
-              : employee.kraScore >= 85
-                ? "Meeting expectations."
-                : employee.kraScore >= 70
-                  ? "Needs support this quarter."
-                  : "On a performance plan."}
-          </p>
-        </div>
+        )}
 
         <div className="grid grid-cols-3 gap-2">
           {[

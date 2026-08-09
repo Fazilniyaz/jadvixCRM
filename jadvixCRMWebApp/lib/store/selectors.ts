@@ -18,6 +18,7 @@ import {
   type QcReview,
   type SecretEntry,
   type StoreState,
+  type Subtask,
   type Task,
   type TaskStatus,
 } from "./types";
@@ -108,9 +109,35 @@ export function checklistDone(task: Task): number {
   return task.checklist.filter((c) => clampScore(c.score) >= 1).length;
 }
 
-/** What the whole checklist is worth. */
+/** What all of a task's subtasks are worth together. */
 export function checklistPoints(task: Task): number {
   return task.checklist.reduce((n, c) => n + itemPoints(c), 0);
+}
+
+/**
+ * Every subtask in the workspace, each carrying the task it belongs to.
+ *
+ * The Subtasks view is a flat list across tasks rather than a second tree: a
+ * subtask has no meaning without its parent, so the parent travels with it and
+ * the row can be read on its own.
+ */
+export type SubtaskRow = {
+  subtask: Subtask;
+  task: Task;
+  /** The acceptance score as a percentage, which is how it is shown. */
+  accepted: number;
+  done: boolean;
+};
+
+export function subtaskRows(tasks: Task[]): SubtaskRow[] {
+  return tasks.flatMap((task) =>
+    task.checklist.map((subtask) => ({
+      subtask,
+      task,
+      accepted: Math.round(clampScore(subtask.score) * 100),
+      done: clampScore(subtask.score) >= 1,
+    })),
+  );
 }
 
 /** Points of a chosen subset — what an Error verdict would cost each assignee. */
@@ -511,16 +538,47 @@ export function winRate(leads: Lead[]): number {
   return Math.round((leads.filter((l) => l.stage === "Won").length / decided) * 100);
 }
 
-/** $412,000 — money is stored as a number and only formatted at the edge. */
-export function money(n: number): string {
-  return `$${n.toLocaleString("en-US")}`;
+/*
+ * Money is stored as a number and only formatted at the edge.
+ *
+ * `currency` is the ISO 4217 code of the branch the workspace is scoped to, and
+ * comes from settings.currency. The locale is pinned to en-US rather than the
+ * viewer's, deliberately: the server and the browser must produce the same
+ * string or the markup mismatches on hydration.
+ *
+ * Falls back to plain dollars when there is no currency — an unscoped group can
+ * span three of them, and picking one would be worse than not saying.
+ */
+export function money(n: number, currency?: string | null): string {
+  if (!currency) return `$${n.toLocaleString("en-US")}`;
+  try {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency,
+      maximumFractionDigits: 0,
+    }).format(n);
+  } catch {
+    // An unknown code would throw a RangeError and take the page with it.
+    return `${currency} ${n.toLocaleString("en-US")}`;
+  }
 }
 
-/** Compact form for stat tiles: $412k, $1.24m. */
-export function moneyShort(n: number): string {
-  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(2)}m`;
-  if (n >= 1_000) return `$${Math.round(n / 1_000)}k`;
-  return `$${n}`;
+/** Compact form for stat tiles: $412k, ₹1.24m. */
+export function moneyShort(n: number, currency?: string | null): string {
+  const unit = n >= 1_000_000 ? "m" : n >= 1_000 ? "k" : "";
+  const scaled = n >= 1_000_000 ? Number((n / 1_000_000).toFixed(2)) : n >= 1_000 ? Math.round(n / 1_000) : n;
+
+  if (!currency) return `$${scaled}${unit}`;
+  try {
+    const formatted = new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency,
+      maximumFractionDigits: n >= 1_000_000 ? 2 : 0,
+    }).format(scaled);
+    return `${formatted}${unit}`;
+  } catch {
+    return `${currency} ${scaled}${unit}`;
+  }
 }
 
 /**

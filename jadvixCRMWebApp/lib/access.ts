@@ -97,16 +97,27 @@ export async function writeGrants(grants: Record<PortalSlug, ModuleSlug[]>) {
     httpOnly: true,
     sameSite: "lax",
     path: "/",
-    secure: process.env.NODE_ENV === "production",
+    secure: process.env.COOKIE_SECURE === "false" ? false : process.env.NODE_ENV === "production",
     maxAge: 60 * 60 * 24 * 365,
   });
 }
+
+/**
+ * The master portal's three modules, fixed.
+ *
+ * It administers tenants and nothing else — there is no project or roster for
+ * it to open, and the API refuses those endpoints for a master token anyway, so
+ * showing them would only produce a sidebar full of 403s.
+ */
+const MASTER_MODULES: readonly ModuleSlug[] = ["dashboard", "companies", "settings"];
 
 /** Mandatory modules plus whatever this portal has been granted, in menu order. */
 export function effectiveModules(
   portal: PortalSlug,
   grants: Record<PortalSlug, ModuleSlug[]>,
 ): ModuleSlug[] {
+  if (portal === "master-portal") return [...MASTER_MODULES];
+
   const allowed = new Set<ModuleSlug>([...MANDATORY_MODULES, ...(grants[portal] ?? [])]);
   // Keep MODULES order so the sidebar grouping stays stable.
   return MODULES.map((m) => m.slug).filter((s) => allowed.has(s));

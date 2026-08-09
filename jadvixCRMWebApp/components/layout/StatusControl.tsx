@@ -5,6 +5,7 @@ import { ChevronDown, Building2, X } from "lucide-react";
 import { tone } from "@/components/ui";
 import { useStore } from "@/lib/store/StoreProvider";
 import { canSetDefaultBranch } from "@/lib/store/selectors";
+import { useSession } from "@/lib/api/session";
 import { EMPLOYEE_STATUSES, EMPLOYEE_STATUS_TONE, type EmployeeStatus } from "@/lib/store/types";
 
 /*
@@ -121,14 +122,25 @@ export function StatusControl() {
 /**
  * Says which branch the numbers describe.
  *
- * Without it, an admin who pinned London last week comes back to a dashboard
- * showing two of fourteen employees and reads it as a bug rather than a filter.
+ * Only for the people who can change it. An admin who pinned London last week
+ * comes back to a dashboard showing two of fourteen employees and needs to be
+ * told it is a filter rather than a bug — but an employee has no second branch
+ * to compare against, cannot unpin it, and does not need to know how many other
+ * offices exist. To them the scope is simply the workspace.
  */
 export function BranchBanner() {
   const { hydrated, settings, setDefaultBranch, currentPortal } = useStore();
-  if (!hydrated || !settings.defaultBranch) return null;
+  const session = useSession();
 
-  const canClear = canSetDefaultBranch(currentPortal);
+  const isAdmin =
+    session.status === "user"
+      ? session.user.roles.includes("superAdmin") || session.user.isOwner
+      : // No API session — this is a demo portal, where the old rule applies.
+        canSetDefaultBranch(currentPortal);
+
+  if (!hydrated || !settings.defaultBranch || !isAdmin) return null;
+
+  const canClear = isAdmin;
 
   return (
     <div

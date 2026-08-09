@@ -76,23 +76,30 @@ export default function ProjectForm({
     setErrors((e) => (e[key] ? { ...e, [key]: "" } : e));
   };
 
+  // The company owner is never a team member — they already reach every
+  // project as super admin, and the API refuses to add them as one.
+  const assignable = useMemo(
+    () => employees.filter((e) => !e.isOwner && e.role !== "Super Admin"),
+    [employees],
+  );
+
   const peopleOptions: Option[] = useMemo(
     () =>
-      employees.map((e) => ({
+      assignable.map((e) => ({
         value: e.id,
         label: e.name,
         hint: `${e.role} · ${e.empId}`,
         initials: initialsOf(e.name),
         tone: ROLE_TONE[e.role],
       })),
-    [employees],
+    [assignable],
   );
 
   // Reporting lines are the oversight roles only — a developer doesn't get
   // reported into.
   const reportOptions = useMemo(
     () =>
-      employees
+      assignable
         .filter((e) => e.role === "Manager" || e.role === "Team Leader" || e.role === "QC")
         .map((e) => ({
           value: e.id,
@@ -101,7 +108,7 @@ export default function ProjectForm({
           initials: initialsOf(e.name),
           tone: ROLE_TONE[e.role],
         })),
-    [employees],
+    [assignable],
   );
 
 

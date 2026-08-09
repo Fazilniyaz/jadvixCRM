@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { Check, ChevronDown, Search, X } from "lucide-react";
 import { Avatar, tone } from "@/components/ui";
-import type { Tone } from "@/lib/data/mock";
+import type { Tone } from "@/lib/ui/tone";
 
 /*
  * Form controls for the CRUD modules. Same chrome as the rest of the product:
@@ -101,7 +101,7 @@ export function TextInput({
   hint?: string;
   error?: string;
   required?: boolean;
-  type?: "text" | "email" | "tel" | "url" | "date";
+  type?: "text" | "email" | "tel" | "url" | "date" | "password";
   disabled?: boolean;
   /** Offered through a datalist — the field still accepts anything typed. */
   suggestions?: string[];

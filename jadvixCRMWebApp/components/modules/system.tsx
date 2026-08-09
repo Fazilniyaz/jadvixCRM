@@ -1,116 +1,15 @@
-import {
-  Activity,
-  Server,
-  ShieldCheck,
-  Gauge,
-  CircleAlert,
-  Palette,
-} from "lucide-react";
+import { ShieldCheck, Palette } from "lucide-react";
 import {
   Card,
   CardHeader,
   CardBody,
   Badge,
-  StatusBadge,
   Avatar,
-  StatTile,
-  TableWrap,
-  Th,
-  Td,
-  Tr,
   Button,
-  Grid,
-  Progress,
   tone,
 } from "@/components/ui";
-import {
-  services,
-  activityLog,
-  resourceUse,
-
-} from "@/lib/data/mock";
 import WorkspacePrefs from "./WorkspacePrefs";
-
-/* ================================================================ monitor == */
-
-export function Monitor() {
-  return (
-    <div className="space-y-4">
-      <Grid cols={4}>
-        <StatTile label="Uptime (30d)" value="99.94%" hint="SLA is 99.9%" t="sky" icon={Activity} />
-        <StatTile label="Services Up" value="3 / 5" hint="1 degraded, 1 incident" t="orange" icon={Server} />
-        <StatTile label="Open Incidents" value="1" hint="Reporting batch timeout" t="red" icon={CircleAlert} />
-        <StatTile label="Avg. Latency" value="181 ms" hint="p95 across services" t="blue" icon={Gauge} />
-      </Grid>
-
-      <div className="grid gap-4 xl:grid-cols-12">
-        <div className="xl:col-span-7">
-          <Card className="h-full">
-            <CardHeader title="Services" desc="Health of each platform component." />
-            <TableWrap>
-              <thead>
-                <tr className="border-b border-line">
-                  <Th>Service</Th>
-                  <Th>Uptime</Th>
-                  <Th>Latency</Th>
-                  <Th>Status</Th>
-                </tr>
-              </thead>
-              <tbody>
-                {services.map((s) => (
-                  <Tr key={s.name}>
-                    <Td className="whitespace-nowrap font-medium text-heading">{s.name}</Td>
-                    <Td className="font-mono text-[0.75rem]">{s.uptime}</Td>
-                    <Td className="font-mono text-[0.75rem]">{s.latency}</Td>
-                    <Td>
-                      <StatusBadge status={s.status} />
-                    </Td>
-                  </Tr>
-                ))}
-              </tbody>
-            </TableWrap>
-          </Card>
-        </div>
-
-        <div className="xl:col-span-5">
-          <Card className="h-full">
-            <CardHeader title="Resource Use" desc="Current utilisation on the primary cluster." />
-            <CardBody className="space-y-5">
-              {resourceUse.map((r) => (
-                <div key={r.label}>
-                  <div className="mb-1.5 flex items-center justify-between text-[0.8125rem]">
-                    <span>{r.label}</span>
-                    <span className="font-semibold text-heading">{r.value}%</span>
-                  </div>
-                  <Progress value={r.value} t={r.tone} />
-                </div>
-              ))}
-            </CardBody>
-          </Card>
-        </div>
-      </div>
-
-      <Card>
-        <CardHeader title="Activity Log" desc="Most recent platform events, newest first." />
-        <ul className="divide-y divide-line">
-          {activityLog.map((a, i) => (
-            <li key={i} className="flex items-start gap-3 px-4 py-2.5 sm:px-5">
-              <span className="w-16 shrink-0 font-mono text-[0.6875rem] text-muted">{a.time}</span>
-              <span
-                className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full"
-                style={{ background: tone[a.tone].solid }}
-              />
-              <span className="min-w-0 flex-1 text-[0.8125rem] leading-relaxed">{a.text}</span>
-              <span className="hidden shrink-0 font-mono text-[0.6875rem] text-muted sm:block">
-                {a.actor}
-              </span>
-            </li>
-          ))}
-        </ul>
-      </Card>
-    </div>
-  );
-}
+import AccountSettings from "./AccountSettings";
 
 /* =============================================================== settings == */
 
@@ -173,11 +72,14 @@ export function Settings({
   /** Rendered above the profile cards for portals that can manage access. */
   accessEditor?: React.ReactNode;
 }) {
-  return (
-    <div className="space-y-4">
-      {accessEditor}
-
-      <div className="grid gap-4 xl:grid-cols-12">
+  /*
+   * The static cards below are the original demo settings. AccountSettings
+   * shows the real profile, password and module-access panels when someone is
+   * signed into the API, and falls back to these when nobody is — so the demo
+   * portals keep the screen they always had.
+   */
+  const staticCards = (
+    <div className="grid gap-4 xl:grid-cols-12">
       <div className="xl:col-span-7 xl:space-y-4">
         <Card>
           <CardHeader title="Profile" desc="How you appear to the rest of the workspace." />
@@ -264,8 +166,27 @@ export function Settings({
           </CardBody>
         </Card>
         </div>
-      </div>
     </div>
+  );
+
+  /*
+   * The portal access matrix is DEMO-ONLY, and now says so by construction.
+   *
+   * It edits a per-browser cookie keyed by portal, which has no bearing on what
+   * the API lets anyone do. Rendering it beside the real, per-user editor in
+   * AccountSettings gave a signed-in super admin two grids that disagreed — and
+   * the one they were most likely to use was the one the backend ignores. It is
+   * inside the fallback now, so it appears only when nobody is signed in.
+   */
+  return (
+    <AccountSettings
+      fallback={
+        <div className="space-y-4">
+          {accessEditor}
+          {staticCards}
+        </div>
+      }
+    />
   );
 }
 

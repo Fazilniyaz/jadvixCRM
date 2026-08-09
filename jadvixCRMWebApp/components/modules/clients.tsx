@@ -64,7 +64,7 @@ import {
   type Client,
   type ClientStatus,
 } from "@/lib/store/types";
-import type { Tone } from "@/lib/data/mock";
+import type { Tone } from "@/lib/ui/tone";
 
 /*
  * Clients — the accounts we deliver for, with full CRUD.
@@ -110,7 +110,7 @@ export function Clients() {
       .filter(({ client }) => {
         if (status !== "All" && client.status !== status) return false;
         if (!q) return true;
-        return `${client.name} ${client.contact} ${client.industry} ${client.id}`
+        return `${client.name} ${client.contact} ${client.industry} ${client.code ?? client.id}`
           .toLowerCase()
           .includes(q);
       })
@@ -246,7 +246,7 @@ export function Clients() {
                               {client.name}
                             </span>
                             <span className="font-mono text-[0.6875rem] text-muted">
-                              {client.id}
+                              {client.code ?? client.id}
                             </span>
                           </span>
                         </div>

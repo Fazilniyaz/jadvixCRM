@@ -19,6 +19,7 @@ import {
   Handshake,
   Activity,
   ClipboardCheck,
+  Inbox,
 } from "lucide-react";
 
 export type ModuleSlug =
@@ -41,7 +42,8 @@ export type ModuleSlug =
   | "leads"
   | "clients"
   | "monitor"
-  | "checklist";
+  | "checklist"
+  | "requests";
 
 export type ModuleDef = {
   slug: ModuleSlug;
@@ -95,6 +97,13 @@ export const MODULES: readonly ModuleDef[] = [
     group: "Work",
     icon: Bug,
     blurb: "Defects raised for triage, with severity and owner.",
+  },
+  {
+    slug: "requests",
+    label: "Requests",
+    group: "Work",
+    icon: Inbox,
+    blurb: "Projects you've been invited to. Accept one to join its team.",
   },
   {
     slug: "communication",
@@ -204,6 +213,9 @@ export const ALL_MODULES = MODULES.map((m) => m.slug) as readonly ModuleSlug[];
  */
 export const MANDATORY_MODULES: readonly ModuleSlug[] = [
   "project-management",
+  // Where a project invitation is answered. Withholding it would leave an
+  // invitation with nowhere to be accepted, so it is never grantable.
+  "requests",
   "communication",
   "performance",
   "leave-requests",
@@ -239,6 +251,42 @@ export const OPTIONAL_MODULES: readonly ModuleSlug[] = [
 
 export function isMandatory(slug: ModuleSlug): boolean {
   return MANDATORY_MODULES.includes(slug);
+}
+
+/* ------------------------------------------------------------ API slugs -- */
+
+/*
+ * The API names five of these differently.
+ *
+ * The backend's registry calls them `projects`, `tasks`, `employees`,
+ * `leaveRequests` and `proposedBugs`; this app has always called them
+ * `project-management`, `task-management`, `employee-management`,
+ * `leave-requests` and `proposed-bugs`. Neither side was renamed to meet the
+ * other — the backend's `resolveModuleSlug` accepts both vocabularies, and this
+ * is the mirror of it, so a module list from /auth/me can be compared against
+ * the sidebar's own slugs.
+ */
+const TO_API: Partial<Record<ModuleSlug, string>> = {
+  "project-management": "projects",
+  "task-management": "tasks",
+  "employee-management": "employees",
+  "leave-requests": "leaveRequests",
+  "proposed-bugs": "proposedBugs",
+};
+
+export function toApiModuleSlug(slug: ModuleSlug): string {
+  return TO_API[slug] ?? slug;
+}
+
+/**
+ * Narrows a list of API module slugs to the ones this app can render.
+ *
+ * Anything unrecognised is dropped rather than guessed at: a module the server
+ * knows about and this build does not has no page to open.
+ */
+export function fromApiModuleSlugs(apiSlugs: readonly string[]): ModuleSlug[] {
+  const granted = new Set(apiSlugs);
+  return ALL_MODULES.filter((slug) => granted.has(toApiModuleSlug(slug)));
 }
 
 export const MODULE_MAP = new Map(MODULES.map((m) => [m.slug, m]));

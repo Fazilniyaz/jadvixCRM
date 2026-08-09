@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useMemo, useSyncExternalStore } from "react";
-import { seedState } from "./seed";
+import { emptyState } from "./emptyState";
 import {
   isShortNotice,
   itemPoints,
@@ -52,7 +52,16 @@ import type {
  * a setState-in-effect cascade.
  */
 
-const STORAGE_KEY = "jadvix.crm.v1";
+/*
+ * Bumped to v2 when the seed was deleted.
+ *
+ * Deleting seed.ts removes it from the bundle but NOT from the browsers that
+ * already ran the old build: their v1 blob still holds the fourteen invented
+ * employees and everything around them, and `readStored` would happily load it
+ * back. A new key orphans that blob so the store genuinely starts empty.
+ */
+const STORAGE_KEY = "jadvix.crm.v2";
+const LEGACY_STORAGE_KEYS = ["jadvix.crm.v1"];
 
 type Snapshot = { hydrated: boolean; state: StoreState };
 
@@ -167,54 +176,25 @@ function migrateTask(raw: Partial<Task>): Task {
 }
 
 /**
- * Repairs stored projects against the seed.
+ * Reads the stored snapshot, defaulting every slice to empty.
  *
- * `clientId` and `plan` arrived after the first saves, and defaulting them to
- * empty is not good enough: with no clientId the client portal's Monitor finds
- * nothing to show, and with an empty plan there is no timeline to render. Both
- * would look like a broken page rather than an out-of-date save.
- *
- * So a stored project keeps everything the user actually edited, and only takes
- * from its seeded twin the fields it has no value for. Seeded projects the
- * store has never seen are appended — which does mean a deleted seed project
- * comes back once. That is the right trade for a demo whose seed is the
- * illustration; anything the user created is untouched either way.
+ * This used to merge over the seed, and most of what it did was repair stored
+ * rows against their seeded twins — supplying a `clientId` or a `plan` the save
+ * predated. With no seed there is nothing to repair against and nothing to fall
+ * back to: a missing or malformed slice is simply empty, which is what it
+ * honestly is.
  */
-function mergeSeededProjects(stored: Partial<Project>[], seeded: Project[]): Project[] {
-  const bySeedId = new Map(seeded.map((p) => [p.id, p]));
-
-  const repaired = stored.map((raw) => {
-    const seed = raw.id ? bySeedId.get(raw.id) : undefined;
-    return {
-      ...(raw as Project),
-      clientId: raw.clientId ?? seed?.clientId,
-      client: raw.client || seed?.client || "",
-      plan: Array.isArray(raw.plan) && raw.plan.length > 0 ? raw.plan : (seed?.plan ?? []),
-      secrets:
-        Array.isArray(raw.secrets) && raw.secrets.length > 0 ? raw.secrets : (seed?.secrets ?? []),
-    };
-  });
-
-  const seen = new Set(repaired.map((p) => p.id));
-  return [...repaired, ...seeded.filter((p) => !seen.has(p.id))];
-}
-
-/** Merges a stored snapshot over the seed so a shape change can't crash a load. */
 function readStored(): StoreState | null {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<StoreState>;
     if (!parsed || typeof parsed !== "object") return null;
-    const base = seedState();
+    const base = emptyState();
     return {
-      employees: Array.isArray(parsed.employees) ? parsed.employees : base.employees,
-      projects: Array.isArray(parsed.projects)
-        ? mergeSeededProjects(parsed.projects, base.projects)
-        : base.projects,
-      tasks: Array.isArray(parsed.tasks) ? parsed.tasks.map(migrateTask) : base.tasks,
-      // Both arrived after the first saves; a stored copy predating them keeps
-      // the seed's rows rather than showing an empty inbox.
+      employees: Array.isArray(parsed.employees) ? parsed.employees : [],
+      projects: Array.isArray(parsed.projects) ? (parsed.projects as Project[]) : [],
+      tasks: Array.isArray(parsed.tasks) ? parsed.tasks.map(migrateTask) : [],
       leaveRequests: Array.isArray(parsed.leaveRequests)
         ? parsed.leaveRequests.map((l) => ({
             ...(l as LeaveRequest),
@@ -231,21 +211,17 @@ function readStored(): StoreState | null {
                   },
                 ],
           }))
-        : base.leaveRequests,
-      notifications: Array.isArray(parsed.notifications)
-        ? parsed.notifications
-        : base.notifications,
-      clockEntries: Array.isArray(parsed.clockEntries) ? parsed.clockEntries : base.clockEntries,
-      clients: Array.isArray(parsed.clients) ? parsed.clients : base.clients,
-      leads: Array.isArray(parsed.leads) ? parsed.leads : base.leads,
-      calendarEvents: Array.isArray(parsed.calendarEvents)
-        ? parsed.calendarEvents
-        : base.calendarEvents,
+        : [],
+      notifications: Array.isArray(parsed.notifications) ? parsed.notifications : [],
+      clockEntries: Array.isArray(parsed.clockEntries) ? parsed.clockEntries : [],
+      clients: Array.isArray(parsed.clients) ? parsed.clients : [],
+      leads: Array.isArray(parsed.leads) ? parsed.leads : [],
+      calendarEvents: Array.isArray(parsed.calendarEvents) ? parsed.calendarEvents : [],
       settings: { ...base.settings, ...(parsed.settings ?? {}) },
     };
   } catch {
-    // A corrupt or unreadable entry should drop us back to the seed, not a
-    // blank screen.
+    // A corrupt or unreadable entry should drop us back to empty, not a blank
+    // screen.
     return null;
   }
 }
@@ -262,7 +238,7 @@ function persist(state: StoreState) {
 
 /* Frozen and never mutated: the server has no localStorage, so it always
    renders the not-yet-hydrated snapshot and the modules show a skeleton. */
-const SERVER_SNAPSHOT: Snapshot = { hydrated: false, state: seedState() };
+const SERVER_SNAPSHOT: Snapshot = { hydrated: false, state: emptyState() };
 
 let snapshot: Snapshot = SERVER_SNAPSHOT;
 const listeners = new Set<() => void>();
@@ -295,11 +271,20 @@ function update(fn: (state: StoreState) => StoreState) {
 /*
  * Read once, when the client bundle first evaluates. This module is a client
  * component so it also runs during SSR — the window check keeps the server on
- * the pristine seed, and keeps one visitor's edits from ever leaking into
+ * an empty state, and keeps one visitor's edits from ever leaking into
  * another's render.
  */
 if (typeof window !== "undefined") {
-  snapshot = { hydrated: true, state: readStored() ?? seedState() };
+  // Clear the superseded blob rather than leaving several megabytes of dead
+  // seed data sitting in every user's browser forever.
+  for (const key of LEGACY_STORAGE_KEYS) {
+    try {
+      window.localStorage.removeItem(key);
+    } catch {
+      /* private mode — nothing was stored to clear */
+    }
+  }
+  snapshot = { hydrated: true, state: readStored() ?? emptyState() };
 }
 
 /* --------------------------------------------------------------- context -- */
@@ -338,6 +323,14 @@ export type StoreValue = {
   deleteTask: (id: string) => void;
   /** Records a QC verdict and applies its KRA consequence in one step. */
   submitQcReview: (taskId: string, input: QcReviewInput) => void;
+  /**
+   * Set one subtask's acceptance score, 0 → 1.
+   *
+   * Separate from `updateTask` because it is a different act by a different
+   * person: an assignee claiming progress on one line, not an edit of the task.
+   * The API has a dedicated endpoint for it that rewrites nothing else.
+   */
+  scoreSubtask: (taskId: string, subtaskId: string, score: number) => void;
 
   createLeaveRequest: (input: LeaveRequestInput) => void;
   decideLeaveRequest: (id: string, status: "Approved" | "Rejected", note?: string) => void;
@@ -407,7 +400,14 @@ export type QcReviewInput = {
   note?: string;
 };
 
-const StoreContext = createContext<StoreValue | null>(null);
+/*
+ * Exported so lib/store/ApiStoreProvider.tsx can re-provide a value on the SAME
+ * context. Employees, Projects, Tasks and Settings are served from the API by
+ * that overlay; everything else still comes from the local store below. Two
+ * contexts would mean two `useStore()` hooks and a component would have to know
+ * which of its fields came from where.
+ */
+export const StoreContext = createContext<StoreValue | null>(null);
 
 /* -------------------------------------------------------------- mutators -- */
 /* Module-level, so they are stable identities and never re-created per render. */
@@ -699,7 +699,7 @@ function setSettings(patch: Partial<WorkspaceSettings>) {
 }
 
 function resetDemoData() {
-  commit(seedState());
+  commit(emptyState());
 }
 
 /* -------------------------------------------------------------- provider -- */
@@ -744,6 +744,32 @@ export function StoreProvider({
       }));
     },
     [currentUser],
+  );
+
+  /**
+   * Set one subtask's acceptance score.
+   *
+   * Only the named subtask moves; the task's own completion is derived from the
+   * subtask scores rather than stored, so nothing else has to be written.
+   */
+  const scoreSubtask = useCallback(
+    (taskId: string, subtaskId: string, score: number) => {
+      const clamped = Math.min(Math.max(score, 0), 1);
+      update((s) => ({
+        ...s,
+        tasks: s.tasks.map((t) =>
+          t.id === taskId
+            ? {
+                ...t,
+                checklist: t.checklist.map((c) =>
+                  c.id === subtaskId ? { ...c, score: clamped } : c,
+                ),
+              }
+            : t,
+        ),
+      }));
+    },
+    [],
   );
 
   /**
@@ -1167,6 +1193,7 @@ export function StoreProvider({
       updateTask,
       deleteTask,
       submitQcReview,
+      scoreSubtask,
       createLeaveRequest,
       decideLeaveRequest,
       withdrawLeaveRequest,
@@ -1206,6 +1233,7 @@ export function StoreProvider({
       createTask,
       updateTask,
       submitQcReview,
+      scoreSubtask,
       createLeaveRequest,
       decideLeaveRequest,
       withdrawLeaveRequest,

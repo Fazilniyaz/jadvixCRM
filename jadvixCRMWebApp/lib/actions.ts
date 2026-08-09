@@ -35,6 +35,20 @@ export async function loginAsDemo(formData: FormData): Promise<void> {
   redirect(`/${slug}`);
 }
 
+/**
+ * Open a portal shell for an account that has already authenticated against
+ * jadvix-backend.
+ *
+ * The API owns the credentials; this cookie only records WHICH portal shell to
+ * render, and every module still asks the API what it is allowed to show. So a
+ * forged cookie buys a sidebar and nothing behind it — the data endpoints check
+ * the bearer token, not this.
+ */
+export async function establishPortalSession(slug: string): Promise<void> {
+  if (!isPortalSlug(slug)) return;
+  await createSession(slug);
+}
+
 export async function logout(): Promise<void> {
   await destroySession();
   redirect("/login");

@@ -1,0 +1,15 @@
+# Caddy fetches and renews a real Let's Encrypt cert for SITE_ADDRESS
+# automatically. /api/* goes to the API (path preserved -> /api/v1/...),
+# everything else to the Next.js server.
+
+{$SITE_ADDRESS} {
+	encode gzip
+
+	handle /api/* {
+		reverse_proxy backend:4000
+	}
+
+	handle {
+		reverse_proxy frontend:3000
+	}
+}

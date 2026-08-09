@@ -27,8 +27,10 @@ export default function Header({
   onThemeToggle,
   portal,
   portalName,
+  canSwitchPortal,
   user,
   role,
+  email,
   onSwitchPortal,
   onLogout,
 }: {
@@ -37,9 +39,14 @@ export default function Header({
   dark: boolean;
   onThemeToggle: () => void;
   portal: string;
+  /** The company for a real session; the demo portal's name otherwise. */
   portalName: string;
+  /** False once somebody is signed into the API — see the switcher below. */
+  canSwitchPortal: boolean;
   user: string;
   role: string;
+  /** Present only for an account signed into the API. */
+  email?: string;
   onSwitchPortal: (slug: string) => void;
   onLogout: () => void;
 }) {
@@ -102,20 +109,29 @@ export default function Header({
         </div>
 
         <div ref={wrap} className="ms-auto flex items-center gap-1">
-          {/* portal switcher */}
+          {/*
+           * The portal switcher is DEMO-ONLY.
+           *
+           * It hops between fifteen hard-coded shells, which is meaningful when
+           * nobody is signed in and nonsense when somebody is — you cannot
+           * become a different person, and the API would refuse everything the
+           * new shell tried. A real session gets the company name instead, not
+           * a menu.
+           */}
           <div className="relative">
             <button
               onClick={() => setMenu((m) => (m === "portal" ? null : "portal"))}
               aria-expanded={menu === "portal"}
               aria-haspopup="menu"
-              className="flex h-9 items-center gap-1.5 rounded-sm border border-line px-2.5 text-[0.75rem] font-medium text-text transition-colors hover:border-primary hover:text-primary"
+              disabled={!canSwitchPortal}
+              className="flex h-9 items-center gap-1.5 rounded-sm border border-line px-2.5 text-[0.75rem] font-medium text-text transition-colors enabled:hover:border-primary enabled:hover:text-primary disabled:cursor-default"
             >
               <Building2 size={15} />
-              <span className="hidden max-w-[8rem] truncate md:inline">{portalName}</span>
-              <ChevronDown size={13} />
+              <span className="hidden max-w-[10rem] truncate md:inline">{portalName}</span>
+              {canSwitchPortal && <ChevronDown size={13} />}
             </button>
 
-            {menu === "portal" && (
+            {canSwitchPortal && menu === "portal" && (
               <div
                 role="menu"
                 className="absolute right-0 z-30 mt-1.5 w-64 overflow-hidden rounded-card border border-line bg-card shadow-pop"
@@ -208,6 +224,11 @@ export default function Header({
                 <div className="border-b border-line px-3 py-2.5">
                   <p className="truncate text-[0.8125rem] font-semibold text-heading">{user}</p>
                   <p className="truncate text-[0.6875rem] text-muted">{role}</p>
+                  {email && (
+                    <p className="mt-0.5 truncate text-[0.6875rem] text-muted" title={email}>
+                      {email}
+                    </p>
+                  )}
                 </div>
                 <button
                   role="menuitem"

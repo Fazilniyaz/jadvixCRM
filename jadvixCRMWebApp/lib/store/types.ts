@@ -1,4 +1,4 @@
-import type { Tone } from "@/lib/data/mock";
+import type { Tone } from "@/lib/ui/tone";
 import type { PortalSlug } from "@/lib/portals";
 
 /*
@@ -12,11 +12,38 @@ import type { PortalSlug } from "@/lib/portals";
 
 /* ------------------------------------------------------------- employees -- */
 
-export const EMPLOYEE_ROLES = ["Manager", "Team Leader", "Developer", "QC", "Sales"] as const;
+/*
+ * "Super Admin" is appended rather than inserted, and is deliberately NOT in
+ * `ASSIGNABLE_ROLES`: it is a role someone HAS, never one you give them from
+ * the employee form. The company owner gets it at creation and nothing in the
+ * UI hands it out.
+ */
+export const EMPLOYEE_ROLES = [
+  "Manager",
+  "Team Leader",
+  "Developer",
+  "QC",
+  "Sales",
+  "Super Admin",
+] as const;
 export type EmployeeRole = (typeof EMPLOYEE_ROLES)[number];
+
+/** What the Add/Edit employee form offers. */
+export const ASSIGNABLE_ROLES = EMPLOYEE_ROLES.filter((r) => r !== "Super Admin");
 
 export const EMPLOYEE_STATUSES = ["Idle", "Work Assigned", "Break", "Leave"] as const;
 export type EmployeeStatus = (typeof EMPLOYEE_STATUSES)[number];
+
+/**
+ * Whether the ACCOUNT can be signed into — not what the person is doing today.
+ *
+ * Distinct from `EmployeeStatus`, which is availability. A new joiner is
+ * `Invited` from the moment they are created until they follow the emailed link
+ * and set a password, at which point they become `Active`. `Disabled` is an
+ * account that exists but has been switched off.
+ */
+export const ACCOUNT_STATES = ["Invited", "Active", "Disabled"] as const;
+export type AccountState = (typeof ACCOUNT_STATES)[number];
 
 export type Employee = {
   id: string;
@@ -35,6 +62,21 @@ export type Employee = {
   /** Set when this person also has a portal login. */
   portal?: PortalSlug;
   tone: Tone;
+  /**
+   * The company owner. Their row is read-only — no edit, no delete — and they
+   * are never offered as a project assignee. Absent for the demo store.
+   */
+  isOwner?: boolean;
+  /**
+   * Whether this person can sign in yet. Absent in the demo store, where nobody
+   * signs in at all; the roster treats absent as `Active` so the seeded
+   * workspace does not read as fourteen people who never accepted.
+   */
+  accountState?: AccountState;
+  /** An invite is outstanding — sent, and not yet accepted. */
+  invitePending?: boolean;
+  /** That outstanding invite has passed its expiry and needs re-sending. */
+  inviteExpired?: boolean;
 };
 
 /* -------------------------------------------------------------- projects -- */
@@ -88,6 +130,14 @@ export type ClientStatus = (typeof CLIENT_STATUSES)[number];
  */
 export type Client = {
   id: string;
+  /**
+   * Human-facing code, e.g. CL-01.
+   *
+   * Separate from `id` since the accounts moved to the API: the id is now an
+   * opaque database key that must never be shown, and this is what a person
+   * reads. Absent in the demo store, where the id WAS the code.
+   */
+  code?: string;
   name: string;
   contact: string;
   email: string;
@@ -289,17 +339,28 @@ export const TASK_STATUSES = ["New", "Backlog", "In Progress", "In Review", "Don
 export type TaskStatus = (typeof TASK_STATUSES)[number];
 
 /**
- * One acceptance line on a task.
+ * One subtask — a single unit of acceptance under a task.
  *
  * Two separate numbers, deliberately:
- *   score  — 0 → 1 in tenths, how far along this line is. Drives completion.
- *   points — what this line is worth. Only used when QC rejects it, at which
+ *   score  — the ACCEPTANCE SCORE, 0 → 1 in tenths. How far along this subtask
+ *            is, and what rolls up into the parent task's completion.
+ *   points — what this subtask is worth. Only used when QC rejects it, at which
  *            point the points come off every assignee's KRA.
  *
- * A line can be fully scored and still be worth points: `score` is the
+ * A subtask can be fully scored and still be worth points: `score` is the
  * employee's claim, `points` is what it costs if QC disagrees.
  */
-export type ChecklistItem = { id: string; label: string; score: number; points: number };
+export type Subtask = { id: string; label: string; score: number; points: number };
+
+/**
+ * The old name for a Subtask.
+ *
+ * Retained as an alias because the API still calls this field `checklist` on
+ * the wire — renaming it there would break a deployed contract for a word. The
+ * product says "subtask" everywhere a person can read it; `Subtask` is the name
+ * to use in new code.
+ */
+export type ChecklistItem = Subtask;
 
 /** An entry in a task's audit trail. */
 export type TaskUpdate = { id: string; at: string; by: string; summary: string };
@@ -544,6 +605,14 @@ export type WorkspaceSettings = {
    * two of fourteen employees would just read as a bug.
    */
   defaultBranch: string | null;
+  /**
+   * ISO 4217 code of the branch in force, when the workspace is scoped to one.
+   *
+   * Null for the demo store and for an unscoped group view — a company spanning
+   * three currencies has no single one to report in, and `money()` falls back
+   * to its plain dollar formatting rather than picking one and being wrong.
+   */
+  currency?: string | null;
 };
 
 export type StoreState = {
@@ -570,6 +639,12 @@ export const EMPLOYEE_STATUS_TONE: Record<EmployeeStatus, Tone> = {
   Leave: "red",
 };
 
+export const ACCOUNT_STATE_TONE: Record<AccountState, Tone> = {
+  Invited: "orange",
+  Active: "sky",
+  Disabled: "red",
+};
+
 export const PROJECT_STATUS_TONE: Record<ProjectStatus, Tone> = {
   Planning: "slate",
   "On Track": "blue",
@@ -592,6 +667,7 @@ export const ROLE_TONE: Record<EmployeeRole, Tone> = {
   Developer: "slate",
   QC: "orange",
   Sales: "red",
+  "Super Admin": "blue",
 };
 
 export const PRIORITIES = [

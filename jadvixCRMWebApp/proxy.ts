@@ -19,6 +19,23 @@ import { isPortalSlug } from "@/lib/portals";
 
 const SESSION_COOKIE = "jadvix_portal";
 
+/*
+ * Routes a signed-out visitor is supposed to reach.
+ *
+ * `/invite` is the one that matters and the one that is easy to forget: the
+ * whole point of an invitation link is that it arrives by email, is opened by
+ * somebody who has no account yet, and IS the credential. Bouncing it to
+ * /login makes the token unusable — and worse, silently, because the link
+ * looks like it simply expired.
+ */
+const PUBLIC_PREFIXES = ["/login", "/invite"];
+
+function isPublic(pathname: string): boolean {
+  return PUBLIC_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+  );
+}
+
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const slug = request.cookies.get(SESSION_COOKIE)?.value;
@@ -28,7 +45,10 @@ export function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL("/", request.url));
   }
 
-  if (pathname !== "/login" && !signedIn) {
+  // Note this deliberately does NOT bounce a signed-in visitor away from
+  // /invite: someone can be signed in as one account and be setting up
+  // another, and the token is what authorises that page, not the cookie.
+  if (!isPublic(pathname) && !signedIn) {
     const url = new URL("/login", request.url);
     const response = NextResponse.redirect(url);
     // Clear a cookie that no longer names anything, so the browser stops

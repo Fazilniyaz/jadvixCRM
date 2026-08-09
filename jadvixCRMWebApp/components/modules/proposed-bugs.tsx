@@ -69,7 +69,7 @@ import {
  *
  * A defect is not a parallel record — it is a task with an `origin`. Raising
  * one here creates it in Task Management, marked as raised by QC, so it picks
- * up an assignee, a checklist and a QC pass like any other work rather than
+ * up an assignee, subtasks and a QC pass like any other work rather than
  * sitting in a list nobody schedules.
  */
 
@@ -309,7 +309,7 @@ function BugDetail({ bug }: { bug: Task }) {
 
         <div className="rounded-sm border border-line bg-card">
           <div className="border-b border-line px-3 py-2.5">
-            <SectionLabel>Fix checklist</SectionLabel>
+            <SectionLabel>Fix subtasks</SectionLabel>
           </div>
           <ul className="divide-y divide-line">
             {bug.checklist.map((c) => (
@@ -385,7 +385,7 @@ function Row({ label, value }: { label: string; value: string }) {
  * Raising a bug writes a task.
  *
  * The fields are the defect's, but what comes out the other side is an
- * ordinary task with a checklist seeded from the fix steps, so it can be
+ * ordinary task with subtasks built from the fix steps, so it can be
  * scheduled and scored without anyone re-typing it.
  */
 function RaiseBugForm({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -558,7 +558,7 @@ function RaiseBugForm({ open, onClose }: { open: boolean; onClose: () => void })
             style={{ background: tone.blue.soft, color: tone.blue.text }}
           >
             <BugIcon size={14} className="mt-px shrink-0" />
-            A three-line fix checklist is added automatically — reproduce, fix, add a regression
+            Three fix subtasks are added automatically — reproduce, fix, add a regression
             case. Adjust it from the task once it is created.
           </p>
         </Span>

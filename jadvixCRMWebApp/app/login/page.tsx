@@ -81,7 +81,7 @@ export default function LoginPage() {
 
           <h1 className="text-[1.5rem] font-bold text-heading">Sign in</h1>
           <p className="mt-1 text-[0.875rem] text-muted">
-            Use a demo credential below to open any portal.
+            Company accounts and the master portal sign in against the Jadvix API.
           </p>
 
           <div className="mt-6">
@@ -91,7 +91,7 @@ export default function LoginPage() {
           <div className="my-7 flex items-center gap-3">
             <span className="h-px flex-1 bg-line" />
             <span className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted">
-              Demo credentials
+              Demo portals (no backend)
             </span>
             <span className="h-px flex-1 bg-line" />
           </div>
@@ -101,8 +101,9 @@ export default function LoginPage() {
           <p className="mt-6 flex items-start gap-2 text-[0.75rem] leading-relaxed text-muted">
             <ShieldCheck size={14} className="mt-px shrink-0" />
             <span>
-              Demo build — credentials are hard-coded and the session is a plain
-              cookie. Replace the auth layer before using real data.
+              The demo portals below open the original static build with its
+              local sample data — they do not touch the API, and no real records
+              are involved. Sign in above to work against the backend.
             </span>
           </p>
         </div>
